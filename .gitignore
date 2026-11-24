@@ -12,3 +12,4 @@ cookies.txt
 logs/
 ready/
 secrets/
+assets/fonts/*.ttf

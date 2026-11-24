@@ -143,6 +143,11 @@ def normalize_metadata(meta: dict, cfg: dict) -> dict:
         half = (len(words) + 1) // 2
         thumb = [" ".join(words[:half]), " ".join(words[half:])]
     meta["thumb_text"] = [t for t in thumb if t][:2]
+    if not meta.get("story_title"):
+        meta["story_title"] = " ".join(meta["thumb_text"]) or meta.get("youtube_title", "")
+    story = meta["story_title"].upper()
+    hl = meta.get("thumb_highlight") or []
+    meta["thumb_highlight"] = [h for h in ([hl] if isinstance(hl, str) else hl) if h and h.upper() in story][:2]
     style = cfg["channel"].get("visual_style", "")
     suffix = f", {style}" if style else ""
     meta["image_prompt"] = (meta.get("image_prompt") or "") + suffix
@@ -157,3 +162,16 @@ def compose_script(vi_text: str, meta: dict) -> str:
     """Kịch bản đọc cuối cùng = intro + truyện + outro."""
     parts = [meta.get("intro"), vi_text, meta.get("outro")]
     return "\n\n".join(p.strip() for p in parts if p and p.strip())
+
+
+def final_title(meta: dict, cfg: dict) -> str:
+    """Tiêu đề YouTube theo mẫu của kênh, vd "[Truyện Audio] {story_title} (Full) | {channel_name}"."""
+    tmpl = cfg["channel"].get("title_template")
+    if not tmpl or not meta.get("story_title"):
+        return meta.get("youtube_title", "")[:100]
+    title = fill(tmpl, story_title=meta["story_title"], channel_name=cfg["channel"]["name"],
+                 episode=meta.get("episode", ""))
+    if len(title) > 100:  # giới hạn YouTube: bỏ phần đuôi kênh trước, rồi mới cắt
+        title = fill(tmpl.split("|")[0].strip(), story_title=meta["story_title"],
+                     channel_name=cfg["channel"]["name"], episode=meta.get("episode", ""))
+    return title[:100]

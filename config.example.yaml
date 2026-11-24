@@ -2,7 +2,7 @@
 
 workdir: output            # mỗi video có 1 thư mục con: output/<slug>/
 
-genre: co_trang            # co_trang | hien_dai | tam_su | kinh_di  (tên file trong prompts/genres/)
+genre: hien_dai            # co_trang | hien_dai | tam_su | kinh_di | hai_huoc | pha_an  (prompts/genres/)
 
 # ------------------------------------------------------------------ chế độ tự động
 # `python -m autovideo auto` duyệt từng chủ đề: tìm truyện mới trên nhiều nguồn, bỏ truyện đã làm,
@@ -37,16 +37,67 @@ youtube:
 # Mỗi chủ đề ghi đè được bất kỳ khóa nào ở trên (genre, tts, render...) => giọng, nhịp đọc,
 # tone footage riêng cho từng chủ đề.
 topics:
+  # Bốn chủ đề dưới đây theo đúng các dạng nội dung đang chạy tốt (truyện ngắn kiểu Zhihu dịch sang
+  # tiếng Việt): hài gia đình, phá án/kinh dị, ngôn tình thiếu gia, thanh xuân thầm thích.
+  # Mỗi chủ đề có thể đặt `enabled: false` để tạm tắt.
+  - name: hai_huoc_gia_dinh
+    keywords: ["沙雕 搞笑 小说 有声 完结", "搞笑家庭 短篇小说 一口气听完", "知乎 沙雕文 有声书"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 15
+    max_minutes: 120
+    genre: hai_huoc
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "+0%", pitch: "+0Hz"}
+    channel: {visual_style: "cute chibi cartoon illustration, thick clean outlines, pastel yellow background, funny exaggerated expression, sticker style"}
+    thumbnail: {paper_color: "#FFF6DA", highlight_colors: ["#D32F2F", "#2E7D32"]}
+    render: {mode: thumbnail}
+
+  - name: pha_an_kinh_di
+    keywords: ["悬疑 推理 短篇小说 有声 完结", "知乎 悬疑故事 一口气听完", "刑侦 案件 小说 有声书"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 15
+    max_minutes: 150
+    genre: pha_an
+    tts: {voice: vi-VN-NamMinhNeural, rate: "-5%", pitch: "-4Hz"}
+    channel: {visual_style: "dark dramatic anime illustration, intense close-up eyes, chaotic brush strokes, red and navy palette"}
+    thumbnail: {badge: "Audio Phá Án · Số {episode}", paper_color: "#F2EFEA", title_color: "#2B2540",
+                highlight_colors: ["#8E1B1B"], badge_color: "#2B2540", badge_text_color: "#F2EFEA", image_side: right}
+    render: {mode: still, still: {scenes: 4}}
+
+  - name: ngon_tinh_thieu_gia
+    keywords: ["霸总 甜宠 短篇 有声 完结", "知乎 言情 豪门 一口气听完", "富二代 甜文 有声小说"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 15
+    max_minutes: 150
+    genre: hien_dai
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "-3%", pitch: "+0Hz"}
+    channel: {visual_style: "aesthetic korean-style portrait photo, moody city night, soft cinematic light, film grain"}
+    thumbnail: {paper_color: "#F8EBD3", title_color: "#8E1B1B", highlight_colors: ["#1F1F1F"], image_side: right}
+    render: {mode: thumbnail}
+
+  - name: thanh_xuan_tham_thich
+    keywords: ["暗恋 青春 校园 短篇 有声", "暗恋成真 甜文 一口气听完", "知乎 暗恋 故事 完结"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 10
+    max_minutes: 120
+    genre: hien_dai
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "-6%", pitch: "+0Hz"}
+    channel: {visual_style: "aesthetic candid photo of a young couple from behind, warm street light at night, soft focus, nostalgic"}
+    thumbnail: {paper_color: "#F3F1EE", title_color: "#5B5555", highlight_colors: ["#C2185B"]}
+    render: {mode: footage, footage: {tone: warm}}
+
+  # Chủ đề cũ — bật lại nếu muốn
   - name: co_trang_tu_tien
+    enabled: false
     keywords: ["古风 有声小说 完结", "仙侠 有声书 一口气听完", "修仙 小说 广播剧"]
-    sites: [bilisearch, ytsearch]  # bilisearch = Bilibili, ytsearch = YouTube (nhiều kênh TQ re-up Ximalaya/喜马拉雅)
-    min_minutes: 20                # bỏ clip ngắn / trailer
+    sites: [bilisearch, ytsearch]
+    min_minutes: 20
     max_minutes: 150
     genre: co_trang
     tts: {voice: vi-VN-NamMinhNeural, rate: "-6%", pitch: "-6Hz"}
     render: {mode: still}
 
   - name: tam_su_dem_khuya
+    enabled: false
     keywords: ["深夜电台 情感故事", "睡前故事 情感 治愈", "深夜情感 真实故事"]
     sites: [bilisearch, ytsearch]
     min_minutes: 15
@@ -55,17 +106,12 @@ topics:
     tts: {voice: vi-VN-HoaiMyNeural, rate: "-10%", pitch: "-3Hz"}
     render: {mode: footage, footage: {tone: warm}}
 
-  - name: ngon_tinh_hien_dai
-    keywords: ["现代言情 有声小说 完结", "甜宠 有声书 全集"]
-    sites: [bilisearch, ytsearch]
-    min_minutes: 20
-    max_minutes: 150
-    genre: hien_dai
-    tts: {voice: vi-VN-HoaiMyNeural, rate: "-5%", pitch: "+0Hz"}
-    render: {mode: footage, footage: {tone: bright}}
-
 channel:
   name: "Đêm Nghe Truyện"
+  # Tiêu đề YouTube dạng phổ biến của kênh truyện audio. Biến: {story_title} {channel_name} {episode}
+  # Để null thì dùng tiêu đề SEO do LLM viết.
+  title_template: "[Truyện Audio] {story_title} (Full) | {channel_name}"
+  episode_start: 1         # số tập đầu tiên (đánh số tăng dần cho mọi video của kênh)
   # Phong cách hình ảnh cố định của kênh — được nối vào mọi image_prompt
   visual_style: "cinematic chinese ink painting, muted teal and amber palette, soft volumetric light, misty, 16:9"
   intro: true              # LLM viết lời dẫn ~30s mang dấu ấn kênh
@@ -115,13 +161,26 @@ thumbnail:
   image_engine: placeholder   # placeholder | comfyui (GPU máy bạn) | cloud (Google Imagen, không tốn GPU)
   cloud_image_model: imagen-4.0-generate-001   # hoặc gemini-2.5-flash-image
   size: [1280, 720]
-  template: assets/templates/frame.png   # PNG trong suốt: khung, logo… (bỏ trống nếu chưa có)
-  font: assets/fonts/thumb.ttf           # font hỗ trợ tiếng Việt; tự fallback DejaVu nếu không có
+  layout: split               # split: ảnh 1 bên + TÊN TRUYỆN chữ lớn trên nền giấy (kiểu kênh truyện audio Việt)
+                              # overlay: chữ đè lên ảnh full khung
+  font: assets/fonts/Anton-Regular.ttf   # chạy `python scripts/get_fonts.py` để tải; thiếu thì dùng DejaVu
+  badge_font: assets/fonts/Oswald.ttf
+  badge: "{channel_name} · Số {episode}" # nhãn trên tên truyện; "" để tắt. Biến: {channel_name} {episode}
+  badge_color: "#F6E3A1"
+  badge_text_color: "#4A2A12"
+  mascot: assets/templates/mascot.png    # PNG trong suốt mascot/logo kênh (tùy chọn)
+  template: null                         # PNG trong suốt phủ toàn khung (khung viền, sticker…) (tùy chọn)
+  # --- layout: split ---
+  paper_color: "#FBF4E6"
+  title_color: "#3A1E12"
+  highlight_colors: ["#C62828", "#2E7D32"]  # màu tô các cụm từ đắt giá (LLM chọn)
+  image_side: left                       # left | right
+  image_ratio: 0.46
+  max_lines: 4
+  # --- layout: overlay ---
   text_color: "#FFE9A8"
   stroke_color: "#000000"
   text_box: [0.05, 0.50, 0.62, 0.95]     # vùng đặt chữ (tỷ lệ x0,y0,x1,y1)
-  badge: "{channel_name}"                # nhãn nhỏ góc trên trái (tên kênh / series); "" để tắt
-  badge_color: "#B8322A"
   comfyui:                 # dùng khi image_engine: comfyui
     enabled: false
     url: http://127.0.0.1:8188

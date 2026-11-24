@@ -50,6 +50,15 @@ schtasks /Create /TN AutoVideo /SC DAILY /ST 02:00 /TR "C:\duong-dan\AutoVideo\s
 
 Log ghi ở `logs\auto.log`.
 
+### Phong cách kênh (theo các kênh truyện audio Việt đang chạy tốt)
+
+- **Tiêu đề:** `[Truyện Audio] {Tên Truyện} (Full) | {Tên Kênh}`, đổi được ở `channel.title_template`. Tên truyện do LLM đặt, dài 5–12 chữ.
+- **Thumbnail `layout: split`:** một bên là ảnh trong khung bo góc viền trắng; bên kia là nền giấy với **tên truyện viết hoa, chữ đậm hẹp (Anton)**.
+  - 1–2 cụm từ đắt giá được tô màu và không bao giờ bị ngắt dòng.
+  - Có nhãn `Tên kênh · Số N` (số tập tự tăng) và mascot kênh (`assets/templates/mascot.png`).
+- **Mỗi chủ đề một màu giấy, màu chữ và phong cách ảnh riêng** (cấu hình trong `topics:`). Ví dụ: hài thì chibi nền vàng, phá án thì anime tối màu đỏ-xanh navy, ngôn tình thì ảnh aesthetic.
+- Chạy `python scripts/get_fonts.py` một lần để tải font (Anton, Baloo 2, Oswald; có tiếng Việt, giấy phép OFL).
+
 ### Duyệt video bằng điện thoại (bot Telegram)
 
 Mỗi video làm xong, bot gửi về Telegram trên điện thoại của bạn:

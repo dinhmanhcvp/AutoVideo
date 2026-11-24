@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse
 from .config import _deep_merge
 from .pipeline import STAGES, Job, slugify
 
-TOPIC_ONLY_KEYS = {"name", "keywords", "sites", "min_minutes", "max_minutes"}
+TOPIC_ONLY_KEYS = {"name", "keywords", "sites", "min_minutes", "max_minutes", "enabled"}
 
 
 def topic_config(cfg: dict, topic: dict) -> dict:
@@ -136,6 +136,8 @@ def run_auto(cfg: dict, topics: list[str] | None = None, per_topic: int | None =
         name = topic["name"]
         if topics and name not in topics:
             continue
+        if not topics and topic.get("enabled", True) is False:
+            continue  # chủ đề tắt vẫn chạy được khi gọi đích danh --topic
         need = per_topic or acfg.get("per_topic", 1)
         tcfg = topic_config(cfg, topic)
         print(f"=== Chủ đề: {name} (cần {need}) ===")

@@ -97,17 +97,30 @@ class Job:
 
         synthesize(self.p("script_vi.txt").read_text(encoding="utf-8"), self.dir, self.cfg["tts"])
 
+    def next_episode(self) -> int:
+        counter = Path(self.cfg["workdir"]) / "episode_counter.txt"
+        n = int(counter.read_text()) + 1 if counter.exists() else int(self.cfg["channel"].get("episode_start", 1))
+        counter.write_text(str(n))
+        return n
+
     def thumbnail(self):
-        from .thumbnail import compose, make_background
+        from .thumbnail import make_background, render_thumbnail
+        from .translate import final_title
 
         meta = json.loads(self.p("metadata.json").read_text(encoding="utf-8"))
         tcfg = dict(self.cfg["thumbnail"])
-        tcfg["badge"] = (tcfg.get("badge") or "").replace("{channel_name}", self.cfg["channel"]["name"])
+        uses_episode = "{episode}" in (tcfg.get("badge") or "") + (self.cfg["channel"].get("title_template") or "")
+        if uses_episode and "episode" not in meta:
+            meta["episode"] = self.next_episode()
+        meta["youtube_title"] = final_title(meta, self.cfg)
+        self.p("metadata.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+        tcfg["badge"] = (tcfg.get("badge") or "").replace("{channel_name}", self.cfg["channel"]["name"]) \
+                                                .replace("{episode}", str(meta.get("episode", "")))
         bg = self.p("thumb_bg.png")
         if not bg.exists():
             make_background(meta["image_prompt"], bg, tcfg)
         if not self.p("thumbnail.jpg").exists():
-            compose(bg, meta["thumb_text"], self.p("thumbnail.jpg"), tcfg)
+            render_thumbnail(bg, meta, self.p("thumbnail.jpg"), tcfg)
 
         if self.cfg["render"]["mode"] == "still":
             scenes_dir = self.p("scenes")
