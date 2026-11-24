@@ -63,7 +63,7 @@ python -m autovideo auto -c config.lite.yaml
 | Nhận giọng tiếng Trung | Faster-Whisper large-v3 trên GPU | **Groq** Whisper large-v3 (cloud, có free tier) hoặc Gemini |
 | Dịch | API Claude/Gemini | như bên trái |
 | Đọc tiếng Việt | edge-tts / F5-TTS local | edge-tts (server Microsoft) |
-| Vẽ ảnh | ComfyUI local | **Google Imagen** (cloud, ~vài trăm đồng/ảnh) |
+| Vẽ ảnh | ComfyUI local | **Google Imagen** (cloud, trả phí theo ảnh, khoảng 1.000đ/ảnh) |
 | Render hình | NVENC | Chỉ render 1 chu kỳ zoom mỗi ảnh rồi nối lặp, không encode lại |
 
 Đo trên CPU 4 nhân, không GPU, ảnh tĩnh 1080p: dựng 5 phút hình mất **26 giây** ở chế độ lặp (gần như
