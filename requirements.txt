@@ -3,8 +3,9 @@ PyYAML>=6.0
 Pillow>=10.0
 yt-dlp>=2025.1.1
 edge-tts>=7.0
+requests>=2.31
 
-# Nhận dạng giọng nói (cần GPU NVIDIA + CUDA/cuDNN để chạy large-v3 nhanh)
+# Nhận dạng giọng nói local — BỎ QUA nếu dùng asr.engine: groq/gemini (máy yếu)
 faster-whisper>=1.1
 
 # LLM — cài một trong hai (hoặc cả hai)

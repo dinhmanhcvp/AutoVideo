@@ -40,10 +40,10 @@ def pick_encoder(pref: str = "auto") -> str:
     return "h264_nvenc" if encoder_works("h264_nvenc") else "libx264"
 
 
-def video_codec_args(encoder: str) -> list[str]:
+def video_codec_args(encoder: str, x264_preset: str | None = None) -> list[str]:
     if encoder == "h264_nvenc":
         return ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "23", "-b:v", "0", "-pix_fmt", "yuv420p"]
-    return ["-c:v", encoder, "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p"]
+    return ["-c:v", encoder, "-preset", x264_preset or "veryfast", "-crf", "21", "-pix_fmt", "yuv420p"]
 
 
 def concat_list(paths: list[Path], list_file: Path) -> Path:

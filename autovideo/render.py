@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import random
 from pathlib import Path
 
@@ -37,7 +38,7 @@ def _normalize_clip(src: Path, cache: Path, rcfg: dict, encoder: str) -> Path:
         vf.append(f"lut3d=file='{lut}'")
     vf.append("format=yuv420p")
     tmp = out.with_suffix(".tmp.mp4")
-    ff.run(["-i", src, "-an", "-vf", ",".join(vf), *ff.video_codec_args(encoder), tmp])
+    ff.run(["-i", src, "-an", "-vf", ",".join(vf), *ff.video_codec_args(encoder, rcfg.get("x264_preset")), tmp])
     tmp.rename(out)
     return out
 
@@ -78,46 +79,67 @@ def footage_track(total: float, out: Path, rcfg: dict, encoder: str) -> Path:
 
 # ---------------------------------------------------------------- Chế độ 2: ảnh tĩnh động
 
-def kenburns_filter(W: int, H: int, fps: int, zoom: float, period: float, zoom_out_first: bool) -> str:
-    # Zoom in/out rất chậm dạng cos (mượt, không giật đầu/cuối chu kỳ). Upscale 2x trước để giảm rung.
+def kenburns_filter(W: int, H: int, fps: int, zoom: float, period: float, zoom_out_first: bool,
+                    upscale: float = 2.0) -> str:
+    # Zoom in/out rất chậm dạng cos: frame cuối chu kỳ khớp frame đầu => nối lặp không thấy vết.
+    # Upscale trước zoompan để giảm rung (2.0 mượt nhất; 1.5 nhẹ máy hơn).
     phase = "1+cos" if zoom_out_first else "1-cos"
     z = f"1+{zoom}*({phase}(2*PI*on/{period * fps}))/2"
+    UW, UH = int(W * upscale) // 2 * 2, int(H * upscale) // 2 * 2
     return (
-        f"scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase,crop={W * 2}:{H * 2},"
+        f"scale={UW}:{UH}:force_original_aspect_ratio=increase,crop={UW}:{UH},"
         f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={fps}"
     )
 
 
-def still_track(images: list[Path], total: float, out: Path, rcfg: dict, encoder: str) -> Path:
+def _still_clip(img: Path, length: float, out: Path, rcfg: dict, encoder: str,
+                zoom_out_first: bool, fade_in: float = 0.0, fade_out: float = 0.0) -> Path:
     W, H = rcfg["resolution"]
     fps = rcfg["fps"]
     scfg = rcfg["still"]
-    seg_len = total / len(images)
+    chain = kenburns_filter(W, H, fps, scfg["zoom"], scfg["zoom_period"], zoom_out_first,
+                            scfg.get("upscale", 2.0))
+    if fade_in:
+        chain += f",fade=t=in:st=0:d={fade_in}"
+    if fade_out:
+        chain += f",fade=t=out:st={length - fade_out:.3f}:d={fade_out}"
+    args = ["-loop", "1", "-framerate", fps, "-t", f"{length:.3f}", "-i", img]
     overlay = scfg.get("overlay")
-    segments: list[Path] = []
-    for i, img in enumerate(images):
-        seg = out.parent / f"seg_{i:02d}.mp4"
-        fade = min(1.0, seg_len / 4)
-        chain = (
-            kenburns_filter(W, H, fps, scfg["zoom"], scfg["zoom_period"], i % 2 == 1)
-            + f",fade=t=in:st=0:d={fade},fade=t=out:st={seg_len - fade:.3f}:d={fade}"
+    if overlay:
+        args += ["-stream_loop", "-1", "-i", overlay]
+        graph = (
+            f"[0:v]{chain},format=gbrp[bg];"
+            f"[1:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={fps},format=gbrp[ov];"
+            f"[bg][ov]blend=all_mode=screen:all_opacity={scfg['overlay_opacity']}:shortest=1,format=yuv420p[v]"
         )
-        args = ["-loop", "1", "-framerate", fps, "-t", f"{seg_len:.3f}", "-i", img]
-        if overlay:
-            args += ["-stream_loop", "-1", "-i", overlay]
-            graph = (
-                f"[0:v]{chain},format=gbrp[bg];"
-                f"[1:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={fps},format=gbrp[ov];"
-                f"[bg][ov]blend=all_mode=screen:all_opacity={scfg['overlay_opacity']}:shortest=1,format=yuv420p[v]"
-            )
-            args += ["-filter_complex", graph, "-map", "[v]"]
+        args += ["-filter_complex", graph, "-map", "[v]"]
+    else:
+        args += ["-vf", chain + ",format=yuv420p"]
+    ff.run([*args, "-t", f"{length:.3f}", *ff.video_codec_args(encoder, rcfg.get("x264_preset")), out])
+    return out
+
+
+def still_track(images: list[Path], total: float, out: Path, rcfg: dict, encoder: str) -> Path:
+    """Mỗi ảnh chiếm 1 đoạn bằng nhau. Với still.loop=true (mặc định) chỉ render 1–2 chu kỳ zoom
+    mỗi ảnh rồi nối lặp bằng stream copy => video 1 tiếng chỉ phải encode vài phút hình."""
+    scfg = rcfg["still"]
+    seg_len = total / len(images)
+    period = scfg["zoom_period"]
+    sequence: list[Path] = []
+    for i, img in enumerate(images):
+        flip = i % 2 == 1
+        if scfg.get("loop", True) and seg_len > period * 1.5:
+            first = _still_clip(img, period, out.parent / f"seg_{i:02d}_a.mp4", rcfg, encoder, flip, fade_in=1.0)
+            body = _still_clip(img, period, out.parent / f"seg_{i:02d}_b.mp4", rcfg, encoder, flip)
+            repeats = math.ceil(seg_len / period)
+            sequence += [first] + [body] * (repeats - 1)
         else:
-            args += ["-vf", chain + ",format=yuv420p"]
-        ff.run([*args, "-t", f"{seg_len:.3f}", *ff.video_codec_args(encoder), seg])
-        segments.append(seg)
+            fade = min(1.0, seg_len / 4)
+            sequence.append(_still_clip(img, seg_len, out.parent / f"seg_{i:02d}.mp4", rcfg, encoder,
+                                        flip, fade_in=fade, fade_out=fade))
         print(f"  [render] cảnh {i + 1}/{len(images)}")
-    lst = ff.concat_list(segments, out.with_suffix(".txt"))
-    ff.run(["-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", out])
+    lst = ff.concat_list(sequence, out.with_suffix(".txt"))
+    ff.run(["-f", "concat", "-safe", "0", "-i", lst, "-t", f"{total:.3f}", "-c", "copy", out])
     return out
 
 

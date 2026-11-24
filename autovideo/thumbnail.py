@@ -34,12 +34,40 @@ def placeholder_background(prompt: str, out: Path, size=(1920, 1080)) -> Path:
     return out
 
 
-def make_background(prompt: str, out: Path, cfg: dict, seed: int | None = None) -> Path:
-    comfy = cfg.get("comfyui") or {}
-    if comfy.get("enabled"):
-        from . import comfyui
+def cloud_image(prompt: str, out: Path, model: str) -> Path:
+    """Vẽ ảnh 16:9 bằng Google (Imagen hoặc Gemini image) — không tốn GPU máy bạn. Cần GEMINI_API_KEY."""
+    from google import genai
 
-        return comfyui.generate(prompt, out, comfy, seed=seed)
+    client = genai.Client()
+    if model.startswith("imagen"):
+        resp = client.models.generate_images(
+            model=model, prompt=prompt,
+            config=genai.types.GenerateImagesConfig(number_of_images=1, aspect_ratio="16:9"),
+        )
+        out.write_bytes(resp.generated_images[0].image.image_bytes)
+        return out
+    resp = client.models.generate_content(model=model, contents=f"{prompt}. Wide 16:9 landscape image, no text.")
+    for part in resp.candidates[0].content.parts:
+        if getattr(part, "inline_data", None) and part.inline_data.data:
+            out.write_bytes(part.inline_data.data)
+            return out
+    raise RuntimeError(f"{model} không trả về ảnh")
+
+
+def make_background(prompt: str, out: Path, cfg: dict, seed: int | None = None) -> Path:
+    """image_engine: placeholder | comfyui (GPU máy bạn) | cloud (Google). Lỗi => dùng ảnh giữ chỗ để
+    pipeline tự động không bị dừng."""
+    comfy = cfg.get("comfyui") or {}
+    engine = cfg.get("image_engine") or ("comfyui" if comfy.get("enabled") else "placeholder")
+    try:
+        if engine == "comfyui":
+            from . import comfyui
+
+            return comfyui.generate(prompt, out, comfy, seed=seed)
+        if engine == "cloud":
+            return cloud_image(prompt, out, cfg.get("cloud_image_model", "imagen-4.0-generate-001"))
+    except Exception as e:
+        print(f"  [ảnh] {engine} lỗi ({e}) — dùng ảnh giữ chỗ")
     return placeholder_background(prompt, out)
 
 

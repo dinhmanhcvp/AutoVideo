@@ -50,6 +50,28 @@ schtasks /Create /TN AutoVideo /SC DAILY /ST 02:00 /TR "C:\duong-dan\AutoVideo\s
 
 Log ghi ở `logs\auto.log`.
 
+### Máy yếu: dùng `config.lite.yaml`
+
+```bash
+pip install PyYAML Pillow yt-dlp edge-tts requests anthropic google-genai   # không cần faster-whisper/torch
+set GROQ_API_KEY=...  &  set ANTHROPIC_API_KEY=...  &  set GEMINI_API_KEY=...
+python -m autovideo auto -c config.lite.yaml
+```
+
+| Việc | Máy mạnh (`config.example.yaml`) | Máy yếu (`config.lite.yaml`) |
+|---|---|---|
+| Nhận giọng tiếng Trung | Faster-Whisper large-v3 trên GPU | **Groq** Whisper large-v3 (cloud, có free tier) hoặc Gemini |
+| Dịch | API Claude/Gemini | như bên trái |
+| Đọc tiếng Việt | edge-tts / F5-TTS local | edge-tts (server Microsoft) |
+| Vẽ ảnh | ComfyUI local | **Google Imagen** (cloud, ~vài trăm đồng/ảnh) |
+| Render hình | NVENC | Chỉ render 1 chu kỳ zoom mỗi ảnh rồi nối lặp, không encode lại |
+
+Đo trên CPU 4 nhân, không GPU, ảnh tĩnh 1080p: dựng 5 phút hình mất **26 giây** ở chế độ lặp (gần như
+không tăng theo độ dài video), so với **112 giây** khi render đầy đủ (~22 phút cho video 1 tiếng).
+Chế độ `footage` cũng nhẹ: mỗi clip chỉ chuẩn hóa 1 lần rồi cache, các video sau nối bằng stream copy.
+
+Mẹo thêm: hạ `render.resolution` xuống `[1280, 720]`; để `auto.per_topic: 1` và lên lịch chạy ban đêm.
+
 ### 3 kiểu hình nền (`render.mode`, đặt riêng theo chủ đề)
 
 | mode | Hình | Hợp với |

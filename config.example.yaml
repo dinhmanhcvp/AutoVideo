@@ -57,7 +57,12 @@ source:
   cookies_file: null       # cookies.txt nếu nguồn cần đăng nhập
 
 asr:
-  model: large-v3
+  engine: local            # local (máy bạn) | groq (cloud, nhanh, có free) | gemini (cloud)
+  chunk_minutes: 10        # cloud: cắt audio thành đoạn ngắn trước khi gửi
+  groq_model: whisper-large-v3
+  gemini_model: gemini-2.5-flash
+  # --- chỉ dùng khi engine: local ---
+  model: large-v3          # máy yếu: small / medium
   device: cuda             # cuda | cpu
   compute_type: float16    # float16 (GPU) | int8 (CPU)
   language: zh
@@ -86,6 +91,8 @@ tts:
     --ref_text "" --gen_file {text_file} --output_dir {out_dir} --output_file {out_name}
 
 thumbnail:
+  image_engine: placeholder   # placeholder | comfyui (GPU máy bạn) | cloud (Google Imagen, không tốn GPU)
+  cloud_image_model: imagen-4.0-generate-001   # hoặc gemini-2.5-flash-image
   size: [1280, 720]
   template: assets/templates/frame.png   # PNG trong suốt: khung, logo… (bỏ trống nếu chưa có)
   font: assets/fonts/thumb.ttf           # font hỗ trợ tiếng Việt; tự fallback DejaVu nếu không có
@@ -94,7 +101,7 @@ thumbnail:
   text_box: [0.05, 0.50, 0.62, 0.95]     # vùng đặt chữ (tỷ lệ x0,y0,x1,y1)
   badge: "{channel_name}"                # nhãn nhỏ góc trên trái (tên kênh / series); "" để tắt
   badge_color: "#B8322A"
-  comfyui:
+  comfyui:                 # dùng khi image_engine: comfyui
     enabled: false
     url: http://127.0.0.1:8188
     workflow: assets/comfyui_workflow_api.json  # export "API format"; đặt {{PROMPT}} trong node text
@@ -105,6 +112,7 @@ render:
   resolution: [1920, 1080]
   fps: 30
   encoder: auto            # auto | h264_nvenc | libx264
+  x264_preset: veryfast    # khi không có GPU NVIDIA: máy yếu dùng superfast / ultrafast
   lead_in: 2.0             # giây nhạc trước khi giọng đọc bắt đầu
   tail: 5.0                # giây nhạc sau khi đọc xong
   footage:
@@ -117,6 +125,8 @@ render:
     scenes: 6              # số ảnh minh họa (theo chương) — tránh Reused Content
     zoom: 0.08             # biên độ Ken Burns
     zoom_period: 40        # giây cho 1 chu kỳ zoom in/out
+    loop: true             # chỉ render 1–2 chu kỳ mỗi ảnh rồi nối lặp (nhanh gấp hàng chục lần)
+    upscale: 2.0           # độ mượt Ken Burns; máy yếu: 1.5
     overlay: null          # assets/overlays/dust.mp4 (bụi, mưa, khói…)
     overlay_opacity: 0.35
   audio:

@@ -1,0 +1,28 @@
+# Cấu hình cho MÁY YẾU (không cần GPU mạnh). Dùng:  python -m autovideo auto -c config.lite.yaml
+# Chỉ ghi các khóa khác config.example.yaml — phần còn lại lấy mặc định.
+# Việc nặng được đẩy lên cloud: nhận giọng (Groq), dịch (Claude/Gemini), đọc (edge-tts), vẽ ảnh (Google).
+# Máy bạn chỉ còn: tải audio + FFmpeg ghép hình/âm thanh (đã tối ưu để encode rất ít).
+#
+# Biến môi trường cần đặt:  GROQ_API_KEY, ANTHROPIC_API_KEY (hoặc GEMINI_API_KEY nếu llm.provider: gemini),
+#                           GEMINI_API_KEY (vẽ ảnh cloud).
+
+asr:
+  engine: groq             # đổi thành gemini nếu chỉ muốn dùng 1 key Google
+
+tts:
+  engine: edge             # chạy trên server Microsoft, máy không tốn gì
+
+thumbnail:
+  image_engine: cloud
+  cloud_image_model: imagen-4.0-generate-001
+
+render:
+  encoder: auto            # có card NVIDIA (kể cả đời cũ GTX 10xx) sẽ tự dùng NVENC
+  x264_preset: superfast
+  fps: 24
+  still:
+    scenes: 4
+    loop: true
+    upscale: 1.5
+  audio:
+    loudnorm: true

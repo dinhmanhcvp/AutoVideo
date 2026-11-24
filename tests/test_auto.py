@@ -106,3 +106,35 @@ def test_thumbnail_mode_render(tmp_path):
     work.mkdir()
     out = render.render(voice, [thumb], work, rcfg)
     assert abs(ff.duration(out) - 4.0) < 0.4
+
+
+def test_still_loop_renders_little_but_fills_duration(tmp_path):
+    img = thumbnail.placeholder_background("x", tmp_path / "x.png", size=(640, 360))
+    rcfg = load_config(overrides={"render": {"resolution": [320, 180], "fps": 12, "encoder": "libx264",
+                                             "still": {"zoom_period": 2, "loop": True, "upscale": 1.5}}})["render"]
+    out = render.still_track([img, img], 13.0, tmp_path / "bg.mp4", rcfg, "libx264")
+    assert abs(ff.duration(out) - 13.0) < 0.3
+    rendered = sorted(p.name for p in tmp_path.glob("seg_*.mp4"))
+    assert rendered == ["seg_00_a.mp4", "seg_00_b.mp4", "seg_01_a.mp4", "seg_01_b.mp4"]  # chỉ 4 clip 2s
+
+
+def test_cloud_asr_chunks_offsets_and_cache(tmp_path, monkeypatch):
+    from autovideo import asr
+
+    audio = tmp_path / "a.m4a"
+    ff.run(["-f", "lavfi", "-i", "sine=frequency=300", "-t", 150, audio])
+    calls = []
+
+    def fake_groq(path, cfg):
+        calls.append(path.name)
+        return [{"start": 0.0, "end": 5.0, "text": "你好。"}, {"start": 8.0, "end": 10.0, "text": "再见。"}]
+
+    monkeypatch.setattr(asr, "_groq_chunk", fake_groq)
+    cfg = {"engine": "groq", "chunk_minutes": 1}
+    text = asr.transcribe(audio, tmp_path / "t.json", cfg)
+    segs = json.loads((tmp_path / "t.json").read_text(encoding="utf-8"))["segments"]
+    assert len(calls) == 3 and len(segs) == 6
+    assert abs(segs[2]["start"] - 60.0) < 0.5  # offset đoạn 2 cộng đúng
+    assert text.count("你好") == 3
+    asr.transcribe(audio, tmp_path / "t.json", cfg)
+    assert len(calls) == 3  # đoạn đã nhận dạng được cache, không gửi lại
