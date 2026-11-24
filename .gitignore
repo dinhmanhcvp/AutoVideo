@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+output/
+config.yaml
+assets/footage/**/*.mp4
+assets/footage/.cache/
+assets/music/*
+assets/overlays/*
+assets/voice_ref.wav
+cookies.txt

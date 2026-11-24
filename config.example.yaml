@@ -1,0 +1,88 @@
+# Sao chép thành config.yaml rồi chỉnh. Mọi đường dẫn tương đối tính từ thư mục chạy lệnh.
+
+workdir: output            # mỗi video có 1 thư mục con: output/<slug>/
+
+genre: co_trang            # co_trang | hien_dai  (tên file trong prompts/genres/)
+
+channel:
+  name: "Đêm Nghe Truyện"
+  # Phong cách hình ảnh cố định của kênh — được nối vào mọi image_prompt
+  visual_style: "cinematic chinese ink painting, muted teal and amber palette, soft volumetric light, misty, 16:9"
+  intro: true              # LLM viết lời dẫn ~30s mang dấu ấn kênh
+  outro: true              # LLM viết lời bình cuối truyện
+
+source:
+  # yt-dlp search prefix: bilisearch | ytsearch  (Douyin/Ximalaya/Xiaoyuzhou: truyền URL trực tiếp)
+  search_site: bilisearch
+  max_per_keyword: 3
+  cookies_file: null       # cookies.txt nếu nguồn cần đăng nhập
+
+asr:
+  model: large-v3
+  device: cuda             # cuda | cpu
+  compute_type: float16    # float16 (GPU) | int8 (CPU)
+  language: zh
+  vad_filter: true
+
+llm:
+  provider: anthropic      # anthropic | gemini
+  model: claude-opus-5-5   # gemini: ví dụ gemini-2.5-pro
+  effort: medium           # chỉ dùng cho anthropic: low | medium | high
+  source_chunk_chars: 1500 # số ký tự tiếng Trung mỗi lần gửi dịch
+  context_chars: 600       # đoạn dịch trước đó gửi kèm để giữ xưng hô nhất quán
+  glossary:                # thuật ngữ / tên riêng cố định (Trung: Việt)
+    师尊: "sư tôn"
+    灵气: "linh khí"
+
+tts:
+  engine: edge             # edge | command
+  voice: vi-VN-HoaiMyNeural  # hoặc vi-VN-NamMinhNeural
+  rate: "-8%"
+  pitch: "-4Hz"
+  chunk_words: 250         # 200–300 chữ / đoạn đọc
+  gap_ms: 450              # khoảng nghỉ giữa các đoạn
+  # engine: command — gọi F5-TTS / XTTS-v2 local. Placeholder: {text_file} {text} {out}
+  command: >-
+    f5-tts_infer-cli --model F5TTS_v1_Base --ref_audio assets/voice_ref.wav
+    --ref_text "" --gen_file {text_file} --output_dir {out_dir} --output_file {out_name}
+
+thumbnail:
+  size: [1280, 720]
+  template: assets/templates/frame.png   # PNG trong suốt: khung, logo… (bỏ trống nếu chưa có)
+  font: assets/fonts/thumb.ttf           # font hỗ trợ tiếng Việt; tự fallback DejaVu nếu không có
+  text_color: "#FFE9A8"
+  stroke_color: "#000000"
+  text_box: [0.05, 0.50, 0.62, 0.95]     # vùng đặt chữ (tỷ lệ x0,y0,x1,y1)
+  comfyui:
+    enabled: false
+    url: http://127.0.0.1:8188
+    workflow: assets/comfyui_workflow_api.json  # export "API format"; đặt {{PROMPT}} trong node text
+    timeout: 600
+
+render:
+  mode: still              # footage | still
+  resolution: [1920, 1080]
+  fps: 30
+  encoder: auto            # auto | h264_nvenc | libx264
+  lead_in: 2.0             # giây nhạc trước khi giọng đọc bắt đầu
+  tail: 5.0                # giây nhạc sau khi đọc xong
+  footage:
+    dir: assets/footage
+    tone: warm             # thư mục con: warm | dark | bright
+    lut: null              # file .cube áp chung
+    brightness: -0.04
+    seed: null             # null = ngẫu nhiên mỗi video
+  still:
+    scenes: 6              # số ảnh minh họa (theo chương) — tránh Reused Content
+    zoom: 0.08             # biên độ Ken Burns
+    zoom_period: 40        # giây cho 1 chu kỳ zoom in/out
+    overlay: null          # assets/overlays/dust.mp4 (bụi, mưa, khói…)
+    overlay_opacity: 0.35
+  audio:
+    music_dir: assets/music
+    ducking: sidechain     # sidechain | fixed
+    music_db: -23          # fixed: mức nhạc nền cố định suốt video
+    music_db_idle: -14     # sidechain: mức nhạc khi không có giọng; tự hạ ~10dB khi có giọng
+    fade_in: 3
+    fade_out: 6
+    loudnorm: true

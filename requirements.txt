@@ -1,0 +1,15 @@
+# Lõi pipeline
+PyYAML>=6.0
+Pillow>=10.0
+yt-dlp>=2025.1.1
+edge-tts>=7.0
+
+# Nhận dạng giọng nói (cần GPU NVIDIA + CUDA/cuDNN để chạy large-v3 nhanh)
+faster-whisper>=1.1
+
+# LLM — cài một trong hai (hoặc cả hai)
+anthropic>=2.0
+google-genai>=1.0
+
+# Dev
+pytest>=8.0
