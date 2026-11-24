@@ -9,7 +9,8 @@ from .translate import fill, load_prompt
 
 WEIGHTS = {"hook": 0.25, "premise": 0.2, "twist": 0.2, "emotion": 0.15, "pacing": 0.1, "vn_fit": 0.1}
 GENRE_NAMES = {
-    "co_trang": "cổ trang / tu tiên", "hien_dai": "ngôn tình hiện đại", "tam_su": "tâm sự đời thực",
+    "co_trang": "cổ trang / tu tiên", "hien_dai": "ngôn tình hiện đại",
+    "ngon_tinh": "ngôn tình hiện đại – hôn nhân hào môn, tổng tài", "tam_su": "tâm sự đời thực",
     "kinh_di": "kinh dị", "hai_huoc": "hài gia đình", "pha_an": "phá án / trinh thám",
 }
 _CJK = re.compile(r"[一-鿿]")

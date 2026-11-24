@@ -175,6 +175,7 @@ def make_metadata(llm, vi_text: str, cfg: dict) -> dict:
         scenes=cfg["render"]["still"]["scenes"],
         intro_outro="\n".join(extra),
         visual_style=ch.get("visual_style", ""),
+        title_style=ch.get("title_style") or "(không có yêu cầu riêng)",
     )
     meta = extract_json(llm.complete(system, "", max_tokens=12000, doc=f"<truyen>\n{vi_text}\n</truyen>"))
     return normalize_metadata(meta, cfg)

@@ -12,6 +12,7 @@ Hằng ngày:
   python -m autovideo report             báo cáo view/giữ chân theo chủ đề
 
 Khác:
+  python -m autovideo market             khảo sát ngách truyện audio đang ăn view trên YouTube (chạy hằng tháng)
   python -m autovideo voices --engine google|edge|elevenlabs
   python -m autovideo make <nguồn> --stages package,render     làm lại vài bước
   (Mặc định dùng config.yaml ở thư mục hiện tại nếu có; đổi bằng -c file.yaml)
@@ -55,6 +56,7 @@ def main(argv=None) -> int:
     p = add("voices", "liệt kê giọng đọc tiếng Việt")
     p.add_argument("--engine", default="edge", choices=["edge", "google", "elevenlabs"])
     add("report", "báo cáo hiệu quả kênh")
+    add("market", "khảo sát ngách đang trend trên YouTube")
     add("bot", "bot Telegram thường trực")
 
     p = add("auto", "chạy 1 lượt tự động theo chủ đề")
@@ -95,6 +97,13 @@ def main(argv=None) -> int:
 
         for v in list_voices(args.engine):
             print(v)
+        return 0
+    if args.cmd == "market":
+        from .market import run_market
+
+        cfg = _cfg(args)
+        run_market(f"{cfg['workdir']}/market")
+        print(f"Báo cáo: {cfg['workdir']}/market/")
         return 0
     if args.cmd == "report":
         from .analytics import fetch_stats, report_text

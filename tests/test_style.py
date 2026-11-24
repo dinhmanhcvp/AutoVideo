@@ -63,7 +63,7 @@ def test_disabled_topics_skipped_unless_named():
     cfg = load_config()
     seen = []
     auto.run_auto(cfg, dry_run=True, search_fn=lambda kw, site, n: seen.append(kw) or [])
-    assert not any("古风" in k for k in seen) and any("沙雕" in k for k in seen)
+    assert any("豪门" in k for k in seen) and not any("古风" in k or "沙雕" in k for k in seen)
     seen.clear()
     auto.run_auto(cfg, topics=["co_trang_tu_tien"], dry_run=True, search_fn=lambda kw, site, n: seen.append(kw) or [])
     assert any("古风" in k for k in seen)

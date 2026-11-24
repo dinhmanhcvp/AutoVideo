@@ -10,6 +10,8 @@ Mục tiêu là **ra view thật**, không phải ra thật nhiều video. Vì v
 - dùng TikTok và Shorts để kéo người xem về video dài,
 - đo kết quả rồi dồn sức cho chủ đề ăn khách.
 
+> 📊 **Ngách đã chọn theo dữ liệu:** ngôn tình hiện đại – hôn nhân hào môn. Xem [docs/market-analysis.md](docs/market-analysis.md) để biết vì sao; chạy lại khảo sát hằng tháng bằng `python -m autovideo market`.
+>
 > 📘 Đọc thêm **[PLAYBOOK.md](PLAYBOOK.md)**: chiến lược xây kênh, những gì công cụ không làm thay bạn được, và các rủi ro chính sách/bản quyền cần biết.
 
 ```
@@ -89,6 +91,7 @@ python -m autovideo make truyen.txt --topic hai_huoc_gia_dinh --export     # .tx
 | `python -m autovideo setup` | cài đặt hỏi đáp (chạy lại để đổi lựa chọn) |
 | `python -m autovideo doctor [--online]` | kiểm tra cài đặt; `--online` gọi thử thật từng dịch vụ |
 | `python -m autovideo brand [--real]` | xem trước thumbnail và clip TikTok mọi chủ đề |
+| `python -m autovideo market` | khảo sát ngách truyện audio đang ăn view trên YouTube (nên chạy hằng tháng) |
 | `python -m autovideo voices --engine google` | liệt kê giọng tiếng Việt |
 | `python -m autovideo auto [--dry-run] [--topic X]` | chạy một lượt tự động |
 | `python -m autovideo make <nguồn> [--topic X] [--export]` | làm video từ nguồn bạn chọn |
@@ -178,7 +181,7 @@ File trung gian của từng video nằm trong `output/<slug>/`. Mỗi bước t
 ## 10. Phát triển
 
 ```bash
-python -m pytest -q    # 43 test offline: LLM/TTS giả lập, media sinh bằng FFmpeg, có test end-to-end đủ 7 bước
+python -m pytest -q    # 46 test offline: LLM/TTS giả lập, media sinh bằng FFmpeg, có test end-to-end đủ 7 bước
 ```
 
 Mã nguồn chính trong `autovideo/`:

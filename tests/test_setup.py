@@ -30,7 +30,7 @@ def test_setup_writes_minimal_config_and_env(tmp_path, monkeypatch):
     assert saved["channel"]["name"] == "Kênh Của Tôi" and saved["asr"]["engine"] == "groq"
     cfg = load_config(cfg_path)
     enabled = [t["name"] for t in cfg["topics"] if t.get("enabled", True)]
-    assert enabled == ["hai_huoc_gia_dinh", "pha_an_kinh_di"]
+    assert enabled == ["ngon_tinh_hao_mon", "ngon_tinh_co_dai"]
     assert cfg["tts"]["engine"] == "google" and cfg["review"]["chat_id"] == "123456"
     assert cfg["hook"]["enabled"] is True  # mặc định vẫn giữ
 

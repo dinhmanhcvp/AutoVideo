@@ -4,6 +4,7 @@ Trả về DUY NHẤT một object JSON (không markdown) với các khóa:
 
 - "title_variants": mảng ĐÚNG 3 phương án, xếp phương án tốt nhất lên đầu. Mỗi phương án là {"story_title": "...", "thumb_highlight": ["..."], "angle": "..."}:
   - story_title: TÊN TRUYỆN 5–12 chữ, viết hoa chữ cái đầu mỗi từ, in to trên thumbnail và nằm trong tiêu đề video. Phải tạo "khoảng trống tò mò": nêu một mâu thuẫn/điều bất thường cụ thể mà không giải thích (ví dụ "Chiếc Túi Da Người Và Lời Nói Dối 18 Năm", "Cả Nhà Tôi Đều Là Cao Thủ Mỏ Hỗn Có Tri Thức", "Ngày Cưới Tôi Phát Hiện Chú Rể Đã Chết Ba Năm"). Dùng con số, vai trò nhân vật (mẹ chồng, thiếu gia, sư tôn), đồ vật lạ, mốc thời gian. Tránh tên chung chung kiểu "Câu Chuyện Tình Yêu", tránh tiết lộ kết, không giật tít sai sự thật.
+  - Phong cách tên truyện riêng của ngách này (ưu tiên làm theo): {title_style}
   - thumb_highlight: 1–2 cụm 1–3 chữ lấy NGUYÊN VĂN từ story_title, là chỗ đắt nhất để tô màu.
   - angle: 3–6 chữ mô tả góc khai thác (vd "bí mật gia đình", "con số gây sốc", "đối đầu hài hước").
 - "youtube_title": tiêu đề SEO dự phòng 60–90 ký tự (chỉ dùng khi kênh không có mẫu tiêu đề).

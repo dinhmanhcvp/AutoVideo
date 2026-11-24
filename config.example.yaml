@@ -2,7 +2,7 @@
 
 workdir: output            # mỗi video có 1 thư mục con: output/<slug>/
 
-genre: hien_dai            # co_trang | hien_dai | tam_su | kinh_di | hai_huoc | pha_an  (prompts/genres/)
+genre: ngon_tinh           # ngon_tinh | co_trang | hien_dai | tam_su | kinh_di | hai_huoc | pha_an  (prompts/genres/)
 
 # ------------------------------------------------------------------ chế độ tự động
 # `python -m autovideo auto` duyệt từng chủ đề: tìm truyện mới trên nhiều nguồn, bỏ truyện đã làm,
@@ -88,10 +88,56 @@ youtube:
 # Mỗi chủ đề ghi đè được bất kỳ khóa nào ở trên (genre, tts, render...) => giọng, nhịp đọc,
 # tone footage riêng cho từng chủ đề.
 topics:
-  # Bốn chủ đề dưới đây theo đúng các dạng nội dung đang chạy tốt (truyện ngắn kiểu Zhihu dịch sang
-  # tiếng Việt): hài gia đình, phá án/kinh dị, ngôn tình thiếu gia, thanh xuân thầm thích.
-  # Mỗi chủ đề có thể đặt `enabled: false` để tạm tắt.
+  # NGÁCH CHÍNH — chọn theo khảo sát thị trường (docs/market-analysis.md, chạy lại: python -m autovideo market):
+  # ngôn tình hiện đại / hôn nhân hào môn dịch từ truyện ngắn Trung: ~92% video mới đạt ≥1.000 view/ngày,
+  # 27 kênh khác nhau cùng ăn view (cầu rộng, kênh mới vào được), độ dài thắng ~50–60 phút,
+  # nguồn truyện Trung dồi dào => hợp nhất với công cụ này.
+  - name: ngon_tinh_hao_mon
+    label: "Ngôn tình hiện đại – hôn nhân hào môn, tổng tài (NGÁCH CHÍNH)"
+    keywords: ["豪门 甜宠 短篇小说 有声 完结", "先婚后爱 有声小说 一口气听完", "追妻火葬场 有声书 完结",
+               "霸总 离婚 有声小说 全文", "知乎 豪门 婚姻 小说 有声"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 25              # bản Việt ~45–60 phút là độ dài video top đang có
+    max_minutes: 90
+    genre: ngon_tinh
+    tts:
+      voice: vi-VN-HoaiMyNeural      # edge; nếu dùng google: giọng nữ ấm (xem `voices --engine google`)
+      rate: "-3%"
+      pitch: "+0Hz"
+      google: {voice: vi-VN-Chirp3-HD-Aoede, speaking_rate: 0.97}
+    channel:
+      visual_style: "romantic chinese manhua illustration, elegant young woman and cold handsome CEO in a luxury penthouse at night, dramatic emotional moment, soft pink and gold palette, cinematic lighting"
+      title_style: >-
+        Ngôi thứ nhất của nữ chính + phản ứng bất ngờ của nam chính, kiểu "Tôi Đòi Ly Hôn, Tạ Tổng Lại Khóc Lóc Bám Dính",
+        "Vợ Ngoan Bỗng Nhiên Né Tránh, Thái Tử Gia Hoảng Rồi", "Sau Ba Lần Từ Chối, Tôi Buông Tay". Gọi nam chính bằng
+        Họ + "Tổng" hoặc "thái tử gia"/"thiếu gia". Tránh mở đầu bằng từ sáo đã bão hòa ("vả mặt", "trọng sinh", "trà xanh")
+        — các từ này xuất hiện nhiều ở video ít view hơn.
+    thumbnail: {paper_color: "#FBEFF1", title_color: "#5A1A2B", highlight_colors: ["#D81B60", "#B8860B"],
+                badge_color: "#5A1A2B", badge_text_color: "#FFE9EF"}
+    render: {mode: still, still: {scenes: 4}}
+
+  # NGÁCH PHỤ (bật khi ngách chính đã có view đều): ngôn tình cổ đại / cung đấu — cùng tệp khán giả nữ,
+  # trung vị ~2.900 view/ngày, 21 kênh trúng.
+  - name: ngon_tinh_co_dai
+    label: "Ngôn tình cổ đại – cung đấu, thứ nữ, thái tử phi (ngách phụ)"
+    enabled: false
+    keywords: ["古言 宫斗 短篇 有声 完结", "庶女 嫡女 有声小说 一口气听完", "太子妃 古言 有声书 完结"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 25
+    max_minutes: 90
+    genre: co_trang
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "-5%", pitch: "-2Hz"}
+    channel:
+      visual_style: "elegant chinese ancient palace illustration, noble lady in hanfu, intrigue and romance, crimson and gold palette, cinematic"
+      title_style: >-
+        Nêu thân phận nữ chính + nước cờ bất ngờ, kiểu "Thứ Nữ Không Tranh Nhưng Giành Được Tất Cả",
+        "Nha Hoàn Cướp Hôn Sự, Nào Ngờ Giúp Ta Thành Thái Tử Phi". Xưng "ta" khi là ngôi thứ nhất cổ đại.
+    thumbnail: {paper_color: "#F7EEDF", title_color: "#6B1515", highlight_colors: ["#B71C1C", "#8D6E00"]}
+    render: {mode: still, still: {scenes: 4}}
+
+  # Các ngách dưới đây tạm tắt (điểm thấp hơn hoặc kém hợp công cụ — xem docs/market-analysis.md)
   - name: hai_huoc_gia_dinh
+    enabled: false
     label: 'Hài gia đình, "mỏ hỗn"'
     keywords: ["沙雕 搞笑 小说 有声 完结", "搞笑家庭 短篇小说 一口气听完", "知乎 沙雕文 有声书"]
     sites: [bilisearch, ytsearch]
@@ -104,6 +150,7 @@ topics:
     render: {mode: thumbnail}
 
   - name: pha_an_kinh_di
+    enabled: false
     label: "Phá án / kinh dị có cú twist"
     keywords: ["悬疑 推理 短篇小说 有声 完结", "知乎 悬疑故事 一口气听完", "刑侦 案件 小说 有声书"]
     sites: [bilisearch, ytsearch]
@@ -117,6 +164,7 @@ topics:
     render: {mode: still, still: {scenes: 4}}
 
   - name: ngon_tinh_thieu_gia
+    enabled: false
     label: "Ngôn tình hiện đại, thiếu gia – tổng tài"
     keywords: ["霸总 甜宠 短篇 有声 完结", "知乎 言情 豪门 一口气听完", "富二代 甜文 有声小说"]
     sites: [bilisearch, ytsearch]
@@ -129,6 +177,7 @@ topics:
     render: {mode: thumbnail}
 
   - name: thanh_xuan_tham_thich
+    enabled: false
     label: "Thanh xuân, thầm thích, chữa lành"
     keywords: ["暗恋 青春 校园 短篇 有声", "暗恋成真 甜文 一口气听完", "知乎 暗恋 故事 完结"]
     sites: [bilisearch, ytsearch]

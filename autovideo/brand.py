@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 SAMPLES = {
+    "ngon_tinh": ("Tôi Đòi Ly Hôn, Hoắc Tổng Lại Khóc Lóc Không Buông", ["Ly Hôn", "Không Buông"]),
     "hai_huoc": ("Cả Nhà Tôi Đều Là Cao Thủ Mỏ Hỗn Có Tri Thức", ["Mỏ Hỗn", "Tri Thức"]),
     "pha_an": ("Chiếc Túi Da Người Và Lời Nói Dối 18 Năm", ["18 Năm"]),
     "hien_dai": ("Thiếu Gia Ăn Chơi Gặp Đúng Khắc Tinh", ["Khắc Tinh"]),

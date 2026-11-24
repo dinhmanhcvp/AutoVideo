@@ -26,6 +26,8 @@ Truyện audio có lợi thế lớn ở điểm 2: người nghe thường bậ
 
 ## 2. Chọn ngách
 
+**Chọn bằng dữ liệu, không chọn theo cảm tính.** Chạy `python -m autovideo market` mỗi tháng. Lệnh này đo lượt xem/ngày, độ đều và số kênh cùng ăn view của 12 ngách trên YouTube Việt Nam. Kết quả khảo sát gần nhất và lý do chọn **ngôn tình hiện đại – hôn nhân hào môn** làm ngách chính nằm ở [docs/market-analysis.md](docs/market-analysis.md).
+
 - **Kênh mới: 1 chủ đề, tối đa 2.** YouTube cần hiểu "khán giả của kênh này là ai" để biết đề xuất cho ai.
   - Kênh trộn hài, kinh dị và ngôn tình làm thuật toán khó khớp khán giả.
   - Mở rộng khi một chủ đề đã có lượt xem đều.
