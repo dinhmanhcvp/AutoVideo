@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse
 from .config import _deep_merge
 from .pipeline import STAGES, Job, slugify
 
-TOPIC_ONLY_KEYS = {"name", "keywords", "sites", "min_minutes", "max_minutes", "enabled"}
+TOPIC_ONLY_KEYS = {"name", "label", "keywords", "sites", "min_minutes", "max_minutes", "enabled"}
 
 
 def topic_config(cfg: dict, topic: dict) -> dict:

@@ -29,3 +29,30 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
     if overrides:
         cfg = _deep_merge(cfg, overrides)
     return cfg
+
+
+def load_env(path: str | Path = ".env") -> list[str]:
+    """Nạp KEY=VALUE từ file .env vào biến môi trường (không ghi đè biến đã có). Trả về các key đã nạp."""
+    import os
+
+    p = Path(path)
+    if not p.exists():
+        return []
+    loaded = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key and value and key not in os.environ:
+            os.environ[key] = value
+            loaded.append(key)
+    return loaded
+
+
+def resolve_config_path(path: str | None) -> str | None:
+    """Không truyền -c thì tự dùng config.yaml ở thư mục hiện tại nếu có."""
+    if path:
+        return path
+    return "config.yaml" if Path("config.yaml").exists() else None

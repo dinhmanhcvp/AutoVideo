@@ -10,7 +10,6 @@ from PIL import Image
 from autovideo import ff, render, thumbnail
 from autovideo.config import load_config
 from autovideo.llm import extract_json
-from autovideo.pipeline import Job
 from autovideo.translate import compose_script, normalize_metadata, split_for_tts, split_source, translate
 
 

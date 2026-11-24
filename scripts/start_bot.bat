@@ -5,7 +5,8 @@ set PYTHONUTF8=1
 cd /d "%~dp0\.."
 if not exist logs mkdir logs
 :loop
-python -m autovideo bot -c config.yaml >> logs\bot.log 2>&1
+if exist .venv call .venv\Scripts\activate.bat
+python -m autovideo bot >> logs\bot.log 2>&1
 REM Bot thoat bat thuong thi tu khoi dong lai sau 15 giay
 timeout /t 15 /nobreak > nul
 goto loop

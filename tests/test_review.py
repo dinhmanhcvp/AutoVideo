@@ -1,5 +1,4 @@
 """Test luồng duyệt qua Telegram + upload YouTube với client giả lập (không gọi mạng)."""
-import json
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo

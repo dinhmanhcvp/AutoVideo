@@ -92,6 +92,7 @@ topics:
   # tiếng Việt): hài gia đình, phá án/kinh dị, ngôn tình thiếu gia, thanh xuân thầm thích.
   # Mỗi chủ đề có thể đặt `enabled: false` để tạm tắt.
   - name: hai_huoc_gia_dinh
+    label: 'Hài gia đình, "mỏ hỗn"'
     keywords: ["沙雕 搞笑 小说 有声 完结", "搞笑家庭 短篇小说 一口气听完", "知乎 沙雕文 有声书"]
     sites: [bilisearch, ytsearch]
     min_minutes: 15
@@ -103,6 +104,7 @@ topics:
     render: {mode: thumbnail}
 
   - name: pha_an_kinh_di
+    label: "Phá án / kinh dị có cú twist"
     keywords: ["悬疑 推理 短篇小说 有声 完结", "知乎 悬疑故事 一口气听完", "刑侦 案件 小说 有声书"]
     sites: [bilisearch, ytsearch]
     min_minutes: 15
@@ -115,6 +117,7 @@ topics:
     render: {mode: still, still: {scenes: 4}}
 
   - name: ngon_tinh_thieu_gia
+    label: "Ngôn tình hiện đại, thiếu gia – tổng tài"
     keywords: ["霸总 甜宠 短篇 有声 完结", "知乎 言情 豪门 一口气听完", "富二代 甜文 有声小说"]
     sites: [bilisearch, ytsearch]
     min_minutes: 15
@@ -126,6 +129,7 @@ topics:
     render: {mode: thumbnail}
 
   - name: thanh_xuan_tham_thich
+    label: "Thanh xuân, thầm thích, chữa lành"
     keywords: ["暗恋 青春 校园 短篇 有声", "暗恋成真 甜文 一口气听完", "知乎 暗恋 故事 完结"]
     sites: [bilisearch, ytsearch]
     min_minutes: 10
@@ -138,6 +142,7 @@ topics:
 
   # Chủ đề cũ — bật lại nếu muốn
   - name: co_trang_tu_tien
+    label: "Cổ trang / tiên hiệp / tu tiên"
     enabled: false
     keywords: ["古风 有声小说 完结", "仙侠 有声书 一口气听完", "修仙 小说 广播剧"]
     sites: [bilisearch, ytsearch]
@@ -148,6 +153,7 @@ topics:
     render: {mode: still}
 
   - name: tam_su_dem_khuya
+    label: "Tâm sự đêm khuya, chuyện đời thật"
     enabled: false
     keywords: ["深夜电台 情感故事", "睡前故事 情感 治愈", "深夜情感 真实故事"]
     sites: [bilisearch, ytsearch]

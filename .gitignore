@@ -13,3 +13,7 @@ logs/
 ready/
 secrets/
 assets/fonts/*.ttf
+inbox/*
+!inbox/.gitkeep
+.env
+config.yaml.bak

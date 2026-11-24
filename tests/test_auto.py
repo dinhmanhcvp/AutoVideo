@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from autovideo import auto, ff, render, thumbnail
 from autovideo.config import load_config

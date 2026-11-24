@@ -1,15 +1,20 @@
-"""CLI:
-  python -m autovideo auto -c config.yaml        # TỰ ĐỘNG: mọi chủ đề -> ready/ (dùng cho lịch chạy hằng ngày)
-  python -m autovideo run <url|audio|text.txt> [...] [-c config.yaml]
+"""AutoVideo — dây chuyền làm video truyện audio từ truyện tiếng Trung.
 
-Ví dụ:
-  python -m autovideo auto -c config.yaml --topic tam_su_dem_khuya --per-topic 2
-  python -m autovideo auto -c config.yaml --dry-run   # chỉ xem sẽ lấy truyện nào
-  python -m autovideo run https://www.bilibili.com/video/BV1xxxx -c config.yaml
-  python -m autovideo run truyen.txt --genre hien_dai --mode footage
-  python -m autovideo run --batch urls.txt
-  python -m autovideo run --keyword "古风 有声小说" --limit 3
-  python -m autovideo run <url> --stages translate,tts      # chạy lại vài bước
+Bắt đầu (1 lần):
+  python -m autovideo setup              hỏi đáp tạo config.yaml + .env
+  python -m autovideo doctor [--online]  kiểm tra máy & khóa API, chỉ cách sửa
+  python -m autovideo brand [--real]     xem trước thumbnail/clip TikTok của kênh
+
+Hằng ngày:
+  python -m autovideo bot                bot Telegram: tự chạy mỗi đêm, duyệt & đăng từ điện thoại
+  python -m autovideo auto [--dry-run]   chạy 1 lượt theo chủ đề -> ready/
+  python -m autovideo make <url|file>    làm 1 video từ link hoặc file .txt/.mp3 bạn chọn
+  python -m autovideo report             báo cáo view/giữ chân theo chủ đề
+
+Khác:
+  python -m autovideo voices --engine google|edge|elevenlabs
+  python -m autovideo make <nguồn> --stages package,render     làm lại vài bước
+  (Mặc định dùng config.yaml ở thư mục hiện tại nếu có; đổi bằng -c file.yaml)
 """
 from __future__ import annotations
 
@@ -17,52 +22,119 @@ import argparse
 import sys
 import traceback
 
-from .config import load_config
-from .pipeline import STAGES, Job
+from .config import load_config, load_env, resolve_config_path
+from .pipeline import STAGE_ALIASES, STAGES, Job
+
+
+def _cfg(args, overrides: dict | None = None) -> dict:
+    return load_config(resolve_config_path(getattr(args, "config", None)), overrides)
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="autovideo", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    if hasattr(sys.stdout, "reconfigure"):
+        try:  # cửa sổ lệnh Windows: in được tiếng Việt
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+    load_env()
+    ap = argparse.ArgumentParser(prog="autovideo", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    run = sub.add_parser("run", help="chạy pipeline")
-    run.add_argument("sources", nargs="*", help="URL, file audio, hoặc file .txt tiếng Trung")
-    run.add_argument("-c", "--config", help="file YAML (mặc định: config.example.yaml)")
-    run.add_argument("--batch", help="file chứa danh sách nguồn, mỗi dòng 1 cái")
-    run.add_argument("--keyword", action="append", default=[], help="tìm nguồn theo từ khóa (lặp được)")
-    run.add_argument("--limit", type=int, help="số kết quả mỗi từ khóa")
-    run.add_argument("--stages", help=f"chỉ chạy các bước: {','.join(STAGES)}")
-    run.add_argument("--genre", help="co_trang | hien_dai")
-    run.add_argument("--mode", choices=["footage", "still"])
-    run.add_argument("--name", help="tên thư mục job (chỉ khi có 1 nguồn)")
 
-    auto = sub.add_parser("auto", help="tự động theo chủ đề trong config (topics:)")
-    auto.add_argument("-c", "--config", help="file YAML")
-    auto.add_argument("--topic", action="append", help="chỉ chạy chủ đề này (lặp được)")
-    auto.add_argument("--per-topic", type=int, help="số video mới mỗi chủ đề")
-    auto.add_argument("--dry-run", action="store_true", help="chỉ tìm và liệt kê, không xử lý")
-    bot = sub.add_parser("bot", help="bot Telegram thường trực: duyệt video, /run, lịch chạy hằng ngày")
-    bot.add_argument("-c", "--config", help="file YAML")
+    def add(name, help_):
+        p = sub.add_parser(name, help=help_)
+        p.add_argument("-c", "--config", help="file YAML (mặc định: config.yaml nếu có)")
+        return p
+
+    add("setup", "hỏi đáp tạo config.yaml + .env")
+    p = add("doctor", "kiểm tra cài đặt")
+    p.add_argument("--online", action="store_true", help="gọi thử thật LLM, giọng đọc, Telegram")
+    p = add("brand", "xem trước nhận diện kênh")
+    p.add_argument("--real", action="store_true", help="vẽ ảnh nền thật (tốn phí ảnh)")
+    p = add("voices", "liệt kê giọng đọc tiếng Việt")
+    p.add_argument("--engine", default="edge", choices=["edge", "google", "elevenlabs"])
+    add("report", "báo cáo hiệu quả kênh")
+    add("bot", "bot Telegram thường trực")
+
+    p = add("auto", "chạy 1 lượt tự động theo chủ đề")
+    p.add_argument("--topic", action="append", help="chỉ chạy chủ đề này (lặp được)")
+    p.add_argument("--per-topic", type=int, help="số video mới mỗi chủ đề")
+    p.add_argument("--dry-run", action="store_true", help="chỉ tìm và liệt kê, không xử lý")
+
+    for name in ("make", "run"):  # run: tên cũ
+        p = add(name, "làm video từ nguồn bạn chọn")
+        p.add_argument("sources", nargs="*", help="URL, file audio, hoặc file .txt (tiếng Trung/Việt)")
+        p.add_argument("--batch", help="file chứa danh sách nguồn, mỗi dòng 1 cái")
+        p.add_argument("--keyword", action="append", default=[], help="tìm nguồn theo từ khóa")
+        p.add_argument("--limit", type=int, help="số kết quả mỗi từ khóa")
+        p.add_argument("--stages", help=f"chỉ chạy các bước: {','.join(STAGES)}")
+        p.add_argument("--topic", help="dùng giọng/văn phong/hình của chủ đề này")
+        p.add_argument("--genre", help="co_trang | hien_dai | tam_su | kinh_di | hai_huoc | pha_an")
+        p.add_argument("--mode", choices=["footage", "still", "thumbnail"])
+        p.add_argument("--name", help="tên thư mục job (chỉ khi có 1 nguồn)")
+        p.add_argument("--export", action="store_true", help="gom thành phẩm vào ready/ (+ gửi Telegram nếu bật)")
     args = ap.parse_args(argv)
 
+    if args.cmd == "setup":
+        from .setup_wizard import run_setup
+
+        run_setup(args.config or "config.yaml")
+        return 0
+    if args.cmd == "doctor":
+        from .doctor import run_doctor
+
+        return run_doctor(_cfg(args), args.online)
+    if args.cmd == "brand":
+        from .brand import run_brand
+
+        run_brand(_cfg(args), args.real)
+        return 0
+    if args.cmd == "voices":
+        from .tts import list_voices
+
+        for v in list_voices(args.engine):
+            print(v)
+        return 0
+    if args.cmd == "report":
+        from .analytics import fetch_stats, report_text
+
+        cfg = _cfg(args)
+        print(report_text(cfg, fetch_stats(cfg) if cfg.get("youtube", {}).get("enabled") else None))
+        return 0
     if args.cmd == "bot":
         from .review import Bot
 
-        Bot(load_config(args.config), args.config).loop()
+        Bot(_cfg(args), resolve_config_path(args.config)).loop()
         return 0
-
     if args.cmd == "auto":
         from .auto import run_auto
 
-        produced = run_auto(load_config(args.config), args.topic, args.per_topic, args.dry_run)
+        produced = run_auto(_cfg(args), args.topic, args.per_topic, args.dry_run)
         print(f"Hoàn tất: {len(produced)} video sẵn sàng đăng.")
         return 0
+    return _make(args, ap)
 
+
+def _make(args, ap) -> int:
     overrides: dict = {}
     if args.genre:
         overrides["genre"] = args.genre
     if args.mode:
         overrides.setdefault("render", {})["mode"] = args.mode
-    cfg = load_config(args.config, overrides)
+    cfg = _cfg(args)
+    topic_name = args.topic
+    if topic_name:
+        from .auto import topic_config
+
+        topic = next((t for t in cfg["topics"] if t["name"] == topic_name), None)
+        if topic is None:
+            ap.error(f"không có chủ đề {topic_name}. Có: {', '.join(t['name'] for t in cfg['topics'])}")
+        cfg = topic_config(cfg, topic)
+    if overrides:
+        from .config import _deep_merge
+
+        cfg = _deep_merge(cfg, overrides)
 
     sources = list(args.sources)
     if args.batch:
@@ -77,14 +149,26 @@ def main(argv=None) -> int:
     if not sources:
         ap.error("cần ít nhất 1 nguồn (URL / file / --batch / --keyword)")
 
-    stages = args.stages.split(",") if args.stages else None
+    stages = [STAGE_ALIASES.get(s, s) for s in args.stages.split(",")] if args.stages else None
     if stages and (bad := set(stages) - set(STAGES)):
-        ap.error(f"bước không hợp lệ: {bad}")
+        ap.error(f"bước không hợp lệ: {bad}. Các bước: {', '.join(STAGES)}")
 
     failed = 0
     for src in sources:
         try:
-            Job(src, cfg, name=args.name if len(sources) == 1 else None).run(stages)
+            job = Job(src, cfg, name=args.name if len(sources) == 1 else None)
+            job.run(stages)
+            if args.export and job.p("video.mp4").exists():
+                from pathlib import Path
+
+                from .auto import export
+
+                dest = export(job, Path(cfg["auto"]["ready_dir"]))
+                print(f"✔ Thành phẩm: {dest}")
+                if cfg.get("review", {}).get("enabled"):
+                    from .review import notify
+
+                    notify(dest, cfg, topic_name or "")
         except Exception:  # batch: lỗi 1 video không chặn các video sau
             failed += 1
             traceback.print_exc()

@@ -1,245 +1,195 @@
 # AutoVideo
 
-Pipeline Python tự động: **audio truyện tiếng Trung → video truyện audio tiếng Việt 16:9** cho YouTube
-(cổ trang, tu tiên, ngôn tình, tâm sự đêm khuya).
+Công cụ làm **video truyện audio tiếng Việt** cho YouTube (kèm clip TikTok và YouTube Shorts) từ truyện
+tiếng Trung, chạy tự động trên PC. Bạn duyệt và đăng bằng điện thoại.
+
+Mục tiêu là **ra view thật**, không phải ra thật nhiều video. Vì vậy công cụ:
+- loại truyện yếu trước khi làm,
+- mở mỗi video bằng một hook 2–5 phút,
+- làm 3 phương án tiêu đề/thumbnail,
+- dùng TikTok và Shorts để kéo người xem về video dài,
+- đo kết quả rồi dồn sức cho chủ đề ăn khách.
+
+> 📘 Đọc thêm **[PLAYBOOK.md](PLAYBOOK.md)**: chiến lược xây kênh, những gì công cụ không làm thay bạn được, và các rủi ro chính sách/bản quyền cần biết.
 
 ```
-yt-dlp ──► Faster-Whisper ──► LLM dịch + biên tập ──► edge-tts / F5-TTS ──► ComfyUI + Pillow ──► FFmpeg
- fetch        asr               translate             tts                  thumbnail            render
+ tìm truyện ─► bóc băng ─► CHẤM ĐIỂM ─► dịch + QA ─► hook 2–5' ─► giọng đọc ─► đóng gói ─► render
+ (Bilibili,     (Whisper)   loại truyện   bảng nhân    câu đầu      Google/Edge/   3 tiêu đề   YouTube 16:9
+  YouTube,                  yếu/dở dang   vật, xưng hô  gây sốc,     ElevenLabs     3 thumbnail TikTok 9:16
+  inbox/)                                               dừng ở                      mục lục     Shorts ≤3'
+                                                        cao trào                    chương
+        ─► Telegram trên điện thoại: xem clip, chọn phương án, bấm Đăng/Hẹn giờ ─► YouTube + Shorts
+        ─► báo cáo view/giữ chân hằng tuần ─► tự dồn sản lượng cho chủ đề ăn khách
 ```
 
-Thay vì ghép nguyên pyvideotrans / MoneyPrinterTurbo (nặng, khó chỉnh prompt), repo này viết lại
-đúng phần lõi của các công cụ đó thành các module nhỏ, gọi trực tiếp thư viện gốc
-(`yt-dlp`, `faster-whisper`, `edge-tts`, FFmpeg) — dễ chỉnh prompt dịch và kiểm soát chất lượng.
+---
 
-## Cài đặt
+## 1. Cài đặt (Windows, khoảng 15 phút)
+
+1. Cài **Python 3.10+** từ python.org (tick *Add python.exe to PATH*).
+2. Tải repo này về máy, mở thư mục, **chạy `scripts\install.bat`**. Script sẽ:
+   - cài FFmpeg (nếu thiếu) và các thư viện,
+   - tải font tiếng Việt,
+   - mở **trình cài đặt hỏi đáp** (`setup`): chọn tên kênh, máy mạnh/yếu, chủ đề, giọng đọc, cách vẽ ảnh, Telegram, rồi dán các khóa API,
+   - chạy **`doctor`** để kiểm tra và chỉ ra còn thiếu gì.
+3. Bỏ tài nguyên kênh vào `assets/` (xem mục 3). Chạy `python -m autovideo doctor` đến khi báo ✅.
+4. Xem trước nhận diện kênh: `python -m autovideo brand --real`, rồi mở `output/brand_preview/index.jpg`.
+   Chỉnh màu, mascot, font trong `config.yaml` cho tới khi ưng ý. Đây là bước quan trọng nhất để kênh trông chuyên nghiệp.
+
+macOS/Linux: `pip install -r requirements.txt && python scripts/get_fonts.py && python -m autovideo setup`.
+
+### Khóa API cần có
+
+`setup` hỏi đúng những khóa bạn cần và lưu vào `.env`.
+
+| Khóa | Dùng cho | Lấy ở đâu |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | dịch, chấm điểm, viết hook/tiêu đề (Claude) | console.anthropic.com |
+| `GEMINI_API_KEY` | vẽ ảnh bằng Imagen (hoặc dịch bằng Gemini) | aistudio.google.com |
+| `GROQ_API_KEY` | bóc băng trên cloud (máy yếu), có gói miễn phí | console.groq.com |
+| `GOOGLE_TTS_API_KEY` | giọng Google Chirp 3 HD | Google Cloud Console → Text-to-Speech API |
+| `ELEVENLABS_API_KEY` | giọng ElevenLabs (tùy chọn) | elevenlabs.io |
+| `TELEGRAM_BOT_TOKEN` | duyệt bằng điện thoại | @BotFather trên Telegram |
+
+## 2. Dùng hằng ngày
+
+**Cách khuyên dùng:** để bot chạy thường trực. Tạo shortcut tới `scripts\start_bot.bat` trong thư mục Startup (`Win+R` → `shell:startup`).
+
+- **Mỗi đêm (`review.daily_run`)**, bot tự chạy một lượt:
+  - tìm truyện theo chủ đề và loại truyện yếu,
+  - làm video, gửi từng video về Telegram.
+- **Trên điện thoại, mỗi video bạn nhận được:**
+  1. Thumbnail kèm điểm truyện và tóm tắt một câu. Hai phương án thumbnail/tiêu đề còn lại có nút **Chọn phương án**.
+  2. **Clip TikTok** (chính là hook): xem để duyệt hook, giữ để lưu về máy rồi đăng TikTok. Kèm caption để sao chép.
+  3. Một đoạn giữa video để kiểm tra giọng, nhạc và hình.
+  4. File toàn văn bản dịch.
+  5. Tiêu đề, mô tả có mục lục, tag, bình luận ghim, và nút **✅ Đăng ngay · 🕒 Hẹn giờ · ✏️ Sửa tiêu đề · 🗑 Bỏ**.
+- **Bấm Đăng hoặc Hẹn giờ**, PC sẽ:
+  - upload video dài cùng thumbnail,
+  - thêm video vào playlist của chủ đề,
+  - đăng Shorts có link sang video dài,
+  - gửi lại bình luận để bạn dán và ghim.
+- **Lệnh gõ cho bot:**
+  - `/run [chủ_đề]`: chạy ngay
+  - `/status`: tình trạng máy và video
+  - `/pending`: video đang chờ duyệt
+  - `/report`: báo cáo kênh. Báo cáo cũng tự gửi mỗi tuần.
+
+**Làm thủ công một video từ truyện bạn chọn:**
 
 ```bash
-# Cần FFmpeg (bản có h264_nvenc nếu dùng GPU NVIDIA) và Python 3.10+
-pip install -r requirements.txt
-cp config.example.yaml config.yaml
-
-export ANTHROPIC_API_KEY=...     # nếu llm.provider: anthropic
-export GEMINI_API_KEY=...        # nếu llm.provider: gemini
+python -m autovideo make "https://www.bilibili.com/video/BV..." --topic pha_an_kinh_di --export
+python -m autovideo make truyen.txt --topic hai_huoc_gia_dinh --export     # .txt tiếng Trung hoặc tiếng Việt
 ```
 
-## Chế độ tự động hoàn toàn
+**Thư mục `inbox/`:** thả file `.txt` truyện bạn tự tuyển vào `inbox/<tên_chủ_đề>/`. Lượt chạy tự động sẽ làm các file này **trước** truyện tự tìm. Đây là nguồn truyện chất lượng nhất.
 
-Khai báo các **chủ đề** trong `config.yaml` → `topics:`. Mỗi chủ đề có: từ khóa tiếng Trung, các nguồn tìm
-(`bilisearch` = Bilibili, `ytsearch` = YouTube), độ dài truyện chấp nhận, thể loại văn phong (`genre`),
-giọng đọc/tốc độ/cao độ riêng (`tts`), và cách dựng hình riêng (`render`: footage tone nào, ảnh minh họa
-hay chỉ dùng thumbnail).
-
-```bash
-python -m autovideo auto -c config.yaml --dry-run          # xem trước sẽ lấy truyện nào
-python -m autovideo auto -c config.yaml                    # chạy thật, mọi chủ đề
-python -m autovideo auto -c config.yaml --topic tam_su_dem_khuya --per-topic 2
-```
-
-Mỗi lần chạy, với từng chủ đề:
-1. Tìm trên mọi (từ khóa × nguồn), xen kẽ nguồn, lọc theo độ dài.
-2. Bỏ truyện đã làm (`output/history.json`), kể cả bản re-up trùng tiêu đề ở nguồn khác; truyện lỗi quá `max_attempts` lần thì bỏ qua.
-3. Chạy trọn pipeline với giọng và văn phong của chủ đề.
-4. Gom thành phẩm vào **`ready/<ngày>_<tiêu-đề>/`**: `video.mp4`, `thumbnail.jpg`, `title.txt`, `description.txt`, `tags.txt`, `source_info.json`. Bạn chỉ việc mở thư mục và đăng.
-
-**Lên lịch hằng ngày trên Windows** (ví dụ 2 giờ sáng, lúc PC rảnh GPU):
-
-```bat
-schtasks /Create /TN AutoVideo /SC DAILY /ST 02:00 /TR "C:\duong-dan\AutoVideo\scripts\run_auto.bat"
-```
-
-Log ghi ở `logs\auto.log`.
-
-### Phong cách kênh (theo các kênh truyện audio Việt đang chạy tốt)
-
-- **Tiêu đề:** `[Truyện Audio] {Tên Truyện} (Full) | {Tên Kênh}`, đổi được ở `channel.title_template`. Tên truyện do LLM đặt, dài 5–12 chữ.
-- **Thumbnail `layout: split`:** một bên là ảnh trong khung bo góc viền trắng; bên kia là nền giấy với **tên truyện viết hoa, chữ đậm hẹp (Anton)**.
-  - 1–2 cụm từ đắt giá được tô màu và không bao giờ bị ngắt dòng.
-  - Có nhãn `Tên kênh · Số N` (số tập tự tăng) và mascot kênh (`assets/templates/mascot.png`).
-- **Mỗi chủ đề một màu giấy, màu chữ và phong cách ảnh riêng** (cấu hình trong `topics:`). Ví dụ: hài thì chibi nền vàng, phá án thì anime tối màu đỏ-xanh navy, ngôn tình thì ảnh aesthetic.
-- Chạy `python scripts/get_fonts.py` một lần để tải font (Anton, Baloo 2, Oswald; có tiếng Việt, giấy phép OFL).
-
-### Hook 2–5 phút + clip TikTok kéo người xem sang YouTube
-
-Mỗi video YouTube được dựng theo thứ tự:
-
-```
-[HOOK 2–5 phút] → câu chuyển → lời dẫn kênh → truyện từ đầu → lời bình cuối
-```
-
-**Hook** (`prompts/hook.md`) do LLM viết từ toàn văn truyện:
-- Chọn khoảnh khắc gay cấn hoặc buồn cười nhất của truyện.
-- **Câu đầu tiên gây sốc, nói được trong 5 giây, vào thẳng sự việc**, không chào hỏi.
-- Cứ mỗi 30–60 giây lại có thêm một chi tiết khiến người nghe tò mò hơn.
-- **Dừng đúng ở cao trào, không lộ kết hay cú twist.**
-
-Giọng đọc vào ngay từ giây 0,5 (`render.lead_in`).
-
-**Clip TikTok** `tiktok.mp4` (dọc 1080×1920) được cắt từ chính đoạn hook:
-- Nhãn kênh và số tập, **tên truyện chữ lớn**, ảnh minh họa.
-- **Phụ đề cháy chữ đồng bộ từng câu**, vì nhiều người lướt TikTok tắt tiếng.
-- Banner đỏ "▶ Nghe trọn bộ trên YouTube: Tên kênh".
-- Cuối clip có câu kêu gọi được đọc thành tiếng (LLM viết theo đúng câu hỏi treo của truyện).
-- Kèm `tiktok_caption.txt` (caption và hashtag).
-- Bố cục tránh vùng giao diện TikTok che (đáy màn hình, cột nút bên phải).
-- Dung lượng giới hạn khoảng 40 MB cho 5 phút, vừa gửi qua bot Telegram.
-
-Trên điện thoại, bot gửi **clip TikTok** và **caption riêng một tin** để chạm-giữ sao chép. Bạn lưu video về máy rồi đăng TikTok ngay.
-
-Chỉnh độ dài trong `hook:` (min/max phút). Nếu hook đọc ra lệch quá 20% so với khoảng này, log sẽ cảnh báo.
-
-### Duyệt video bằng điện thoại (bot Telegram)
-
-Mỗi video làm xong, bot gửi về Telegram trên điện thoại của bạn:
-
-1. **Thumbnail**, kèm tiêu đề, chủ đề, độ dài và link nguồn.
-2. **Clip xem thử** (2 phút đầu + 45 giây giữa video, 480p) để nghe giọng, nhạc và xem hình.
-3. **File toàn văn bản dịch** để đọc kiểm tra văn phong.
-4. **Tiêu đề, mô tả, tag** kèm nút: **✅ Đăng ngay · 🕒 Hẹn giờ · ✏️ Sửa tiêu đề · 🗑 Bỏ**.
-
-Bấm **Đăng ngay** hoặc **Hẹn giờ** thì PC tự upload lên YouTube (hẹn giờ chọn khung trống gần nhất trong
-`youtube.schedule_slots`). Bấm **Bỏ** thì video được chuyển vào `ready/_rejected`.
-
-Gõ lệnh cho bot từ điện thoại:
-
-| Lệnh | Tác dụng |
+| Lệnh | Việc |
 |---|---|
-| `/run` hoặc `/run tam_su_dem_khuya` | chạy ngay (tất cả hoặc 1 chủ đề) |
-| `/status` | máy đang chạy hay rảnh, số video chờ duyệt, lịch đăng |
-| `/pending` | gửi lại các video chưa duyệt |
+| `python -m autovideo setup` | cài đặt hỏi đáp (chạy lại để đổi lựa chọn) |
+| `python -m autovideo doctor [--online]` | kiểm tra cài đặt; `--online` gọi thử thật từng dịch vụ |
+| `python -m autovideo brand [--real]` | xem trước thumbnail và clip TikTok mọi chủ đề |
+| `python -m autovideo voices --engine google` | liệt kê giọng tiếng Việt |
+| `python -m autovideo auto [--dry-run] [--topic X]` | chạy một lượt tự động |
+| `python -m autovideo make <nguồn> [--topic X] [--export]` | làm video từ nguồn bạn chọn |
+| `python -m autovideo make <nguồn> --stages package,render` | làm lại vài bước (xóa file đầu ra của bước đó trước) |
+| `python -m autovideo bot` | bot Telegram thường trực |
+| `python -m autovideo report` | báo cáo view và giữ chân theo chủ đề |
 
-Bot còn tự chạy `auto` mỗi ngày lúc `review.daily_run`. Nếu PC bật muộn hơn giờ đó, bot sẽ chạy bù.
-Khi có lỗi, bot nhắn về điện thoại.
+## 3. Tài nguyên kênh (`assets/`)
 
-**Cài đặt (làm 1 lần trên PC):**
-
-1. Trên Telegram, nhắn **@BotFather** → `/newbot` → lấy token. Đặt biến môi trường `TELEGRAM_BOT_TOKEN`.
-2. Chạy `python -m autovideo bot -c config.yaml`, rồi nhắn `/id` cho bot vừa tạo. Điền số nhận được vào
-   `review.chat_id` (chỉ chat này được bấm nút), và đặt `review.enabled: true`.
-3. Để bot tự bật cùng Windows: `Win+R` → `shell:startup` → tạo shortcut tới `scripts\start_bot.bat`.
-   Bot đã tự chạy hằng ngày nên không cần lên lịch `schtasks` nữa.
-
-**Upload YouTube tự động** (`youtube.enabled: true`):
-
-1. Vào Google Cloud Console → tạo project → bật **YouTube Data API v3**.
-2. Màn hình OAuth consent: chọn External, thêm email kênh của bạn vào Test users. Sau đó bấm **Publish app**
-   (chuyển sang "In production"). Nếu để chế độ Testing, Google bắt đăng nhập lại mỗi 7 ngày.
-3. Credentials → **OAuth client ID → Desktop app** → tải JSON về `secrets/client_secret.json`.
-4. Lần đầu bấm "Đăng" thì PC mở trình duyệt để đăng nhập kênh. Từ đó về sau chạy tự động.
-5. Muốn đặt thumbnail tùy chỉnh, kênh phải đã xác minh số điện thoại.
-
-> ⚠️ **Cần kiểm tra trước khi tin tưởng hoàn toàn:** theo chính sách YouTube API (mình chưa xác minh được
-> bản mới nhất), video upload từ project API **chưa qua audit** có thể bị **khóa ở chế độ Riêng tư**.
-> Hãy thử 1 video. Nếu bị khóa, gửi đơn audit "YouTube API Services" của Google (miễn phí). Trong lúc chờ,
-> để `youtube.enabled: false`: bấm **✅ Duyệt** thì video chuyển vào `ready/_approved/` để bạn tự đăng.
-> Hạn mức API mặc định chỉ đủ vài video/ngày, đủ cho 1 kênh.
-
-### Máy yếu: dùng `config.lite.yaml`
-
-```bash
-pip install PyYAML Pillow yt-dlp edge-tts requests anthropic google-genai   # không cần faster-whisper/torch
-set GROQ_API_KEY=...  &  set ANTHROPIC_API_KEY=...  &  set GEMINI_API_KEY=...
-python -m autovideo auto -c config.lite.yaml
-```
-
-| Việc | Máy mạnh (`config.example.yaml`) | Máy yếu (`config.lite.yaml`) |
+| Đường dẫn | Nội dung | Ghi chú |
 |---|---|---|
-| Nhận giọng tiếng Trung | Faster-Whisper large-v3 trên GPU | **Groq** Whisper large-v3 (cloud, có free tier) hoặc Gemini |
-| Dịch | API Claude/Gemini | như bên trái |
-| Đọc tiếng Việt | edge-tts / F5-TTS local | edge-tts (server Microsoft) |
-| Vẽ ảnh | ComfyUI local | **Google Imagen** (cloud, trả phí theo ảnh, khoảng 1.000đ/ảnh) |
-| Render hình | NVENC | Chỉ render 1 chu kỳ zoom mỗi ảnh rồi nối lặp, không encode lại |
+| `assets/templates/mascot.png` | mascot/logo kênh, PNG trong suốt | hiện trên mọi thumbnail, giúp người xem nhận ra kênh |
+| `assets/fonts/` | `python scripts/get_fonts.py` | Anton, Oswald, Baloo 2; có tiếng Việt, giấy phép OFL |
+| `assets/music/` | ≥ 5 bài nhạc nền **không bản quyền** | YouTube Audio Library là nguồn an toàn nhất, nhất là khi đăng TikTok |
+| `assets/footage/<tone>/` | ≥ 8 clip cùng tone (chủ đề dùng `mode: footage`) | dùng footage bạn có quyền sử dụng |
+| `assets/overlays/` | hiệu ứng nền đen (bụi, mưa, khói), tùy chọn | |
 
-Đo trên CPU 4 nhân, không GPU, ảnh tĩnh 1080p: dựng 5 phút hình mất **26 giây** ở chế độ lặp (gần như
-không tăng theo độ dài video), so với **112 giây** khi render đầy đủ (~22 phút cho video 1 tiếng).
-Chế độ `footage` cũng nhẹ: mỗi clip chỉ chuẩn hóa 1 lần rồi cache, các video sau nối bằng stream copy.
+## 4. Công cụ làm gì để video có view
 
-Mẹo thêm: hạ `render.resolution` xuống `[1280, 720]`; để `auto.per_topic: 1` và lên lịch chạy ban đêm.
-
-### 3 kiểu hình nền (`render.mode`, đặt riêng theo chủ đề)
-
-| mode | Hình | Hợp với |
+| Khâu | Cách làm | Vì sao |
 |---|---|---|
-| `footage` | Ghép footage nấu ăn/chill cùng tone (`assets/footage/<tone>/`), xáo thứ tự, lặp đủ độ dài, áp LUT chung | tâm sự, hiện đại |
-| `still` | 5–10 ảnh minh họa theo diễn biến truyện, Ken Burns + overlay bụi/mưa | cổ trang, tu tiên |
-| `thumbnail` | Chỉ dùng chính thumbnail (có tiêu đề) làm nền, zoom chậm | nhanh, nhẹ nhất |
+| **Chọn truyện** | LLM chấm 6 tiêu chí (hook, tiền đề, twist, cảm xúc, nhịp, hợp khẩu vị Việt), kiểm tra truyện trọn vẹn và an toàn quảng cáo. Truyện dưới `quality.min_score` bị loại trước khi dịch. | Truyện dở thì đóng gói đẹp mấy cũng không giữ chân được người xem; loại sớm thì không tốn phí dịch, đọc, render. |
+| **Dịch** | Trích bảng nhân vật (tên Hán Việt, giới tính, quan hệ, gợi ý xưng hô) trước khi dịch. Mỗi đoạn qua QA (sót chữ Hán, bị lược, bị bịa, bị từ chối) và được dịch lại nếu lỗi. | Xưng hô sai là lỗi khiến người nghe bỏ ngay. |
+| **Hook 2–5 phút** | Chọn khoảnh khắc gay cấn nhất. Câu đầu gây sốc trong 5 giây, cứ 30–60 giây có chi tiết mới, dừng ở cao trào. Giọng vào ngay từ giây 0,5. | Phút đầu quyết định thời lượng xem trung bình; hook cũng là clip TikTok/Shorts. |
+| **Đóng gói** | 3 phương án tên truyện (mỗi cái một góc gây tò mò) và 3 thumbnail; tiêu đề theo mẫu kênh; mô tả có 2 dòng đầu gây tò mò, mục lục chương lấy từ timeline giọng đọc thật, CTA, 3 hashtag; bình luận ghim kích thích tranh luận. | CTR và tương tác. 3 thumbnail dùng được cho *Thử nghiệm & so sánh* của YouTube Studio. |
+| **Phễu** | TikTok (hook đầy đủ, phụ đề cháy chữ, banner sang YouTube) và Shorts (cắt ở câu treo, ≤ 3 phút) tự đăng kèm link sang video dài. | Kênh mới gần như không có lượt hiển thị; clip ngắn mang người xem đầu tiên về. |
+| **Đo và điều chỉnh** | Báo cáo view/ngày và % giữ chân theo chủ đề, cảnh báo video giữ chân < 25%. `auto.adaptive` tự dồn sản lượng cho chủ đề tốt nhất, vẫn chừa phần thử chủ đề mới. | Làm nhiều cái đang chạy tốt, bỏ cái không chạy. |
 
-## Chạy thủ công
+## 5. Chi phí ước tính cho một video khoảng 1 tiếng
 
-```bash
-# 1 video từ URL (Bilibili / Douyin / YouTube / Ximalaya…)
-python -m autovideo run "https://www.bilibili.com/video/BVxxxx" -c config.yaml
+| Hạng mục | Lựa chọn | Ước tính |
+|---|---|---|
+| LLM (chấm điểm, dịch, metadata, hook) | Claude Opus 5.5 / Sonnet 5.5 | ~1–1,5 USD / ~0,6 USD |
+| Giọng đọc | Edge / Google Chirp 3 HD / ElevenLabs | 0 / ~1–2 USD / cao (tùy gói) |
+| Ảnh | Imagen, 1–6 ảnh | ~0,04 USD/ảnh |
+| Bóc băng | Groq / máy bạn | rất thấp / 0 |
 
-# Đã có text tiếng Trung cào từ web truyện → bỏ qua ASR (sạch và nhanh hơn)
-python -m autovideo run truyen.txt -c config.yaml --genre co_trang
+Đây là số ước tính. Chi phí LLM thật của từng video được ghi trong `cost.json`, và LLM có dùng prompt caching cho toàn văn truyện. Truyện bị loại chỉ tốn phí bóc băng và một lần chấm điểm.
 
-# Hàng loạt
-python -m autovideo run --batch urls.txt -c config.yaml
-python -m autovideo run --keyword "古风 有声小说" --keyword "深夜情感电台" --limit 3 -c config.yaml
+## 6. Cấu hình
 
-# Chạy lại một vài bước (xóa file đầu ra của bước đó trước)
-python -m autovideo run <url> --stages tts,render -c config.yaml
-```
+Mọi tùy chọn và giải thích nằm trong **`config.example.yaml`**. `config.yaml` của bạn chỉ chứa những gì khác mặc định. Các nhóm chính:
 
-Kết quả nằm ở `output/<slug>/`:
+- `channel`: tên, mẫu tiêu đề, link đăng ký, chân mô tả
+- `topics`: từng chủ đề có từ khóa, nguồn, giọng, màu, phong cách ảnh, kiểu hình nền
+- `quality`: điểm tối thiểu, bắt buộc truyện trọn vẹn và an toàn quảng cáo
+- `hook`, `tiktok`, `shorts`: độ dài hook, banner, tự đăng Shorts
+- `review`, `youtube`: Telegram, lịch chạy, giờ đăng, playlist theo chủ đề
+- `auto`: số video mỗi lượt, `adaptive`, `inbox`
 
-| File | Bước |
+**Máy yếu:** chọn "máy yếu" trong `setup`, hoặc dùng `-c config.lite.yaml`. Khi đó bóc băng và vẽ ảnh chạy trên cloud, còn ảnh tĩnh chỉ render một vòng zoom rồi nối lặp. Trên CPU 4 nhân, 5 phút hình mất 26 giây so với 112 giây khi render đầy đủ.
+
+## 7. Upload YouTube tự động (`youtube.enabled: true`)
+
+1. Google Cloud Console → tạo project → bật **YouTube Data API v3** và **YouTube Analytics API**.
+2. OAuth consent screen: chọn External, thêm email kênh vào Test users, rồi **Publish app** (để chế độ Testing thì Google bắt đăng nhập lại mỗi 7 ngày).
+3. Credentials → OAuth client ID → **Desktop app** → tải JSON về `secrets/client_secret.json`.
+4. Lần đầu bấm Đăng, PC mở trình duyệt để bạn đăng nhập kênh.
+5. Kênh cần xác minh số điện thoại mới đặt được thumbnail tùy chỉnh.
+
+> ⚠️ **Thử 1 video trước.** Theo chính sách YouTube API (bản mới nhất chưa được kiểm chứng khi viết công cụ này), video upload từ project chưa qua *audit* có thể bị **khóa ở chế độ Riêng tư**. Nếu bị khóa, gửi đơn audit (miễn phí). Trong lúc chờ, để `youtube.enabled: false`: nút ✅ Duyệt sẽ chuyển video vào `ready/_approved/` để bạn tự đăng.
+
+## 8. Thành phẩm
+
+`ready/<ngày>_<tiêu-đề>/` gồm:
+
+| Nhóm | File |
 |---|---|
-| `source.m4a`, `source_info.json` | fetch |
-| `transcript_zh.json` (timestamp), `source_zh.txt` | asr |
-| `translate_progress.json`, `story_vi.txt`, `metadata.json`, `youtube_description.txt`, `script_vi.txt` (intro + truyện + outro) | translate |
-| `tts/*.wav`, `voice.wav` | tts |
-| `thumb_bg.png`, `thumbnail.jpg`, `scenes/*.png` | thumbnail |
-| `render/mix.m4a`, `render/bg.mp4`, **`video.mp4`** | render |
+| Video | `video.mp4`, `tiktok.mp4`, `short.mp4` |
+| Thumbnail | `thumbnail.jpg`, `thumbnail_2.jpg`, `thumbnail_3.jpg` |
+| Chữ để đăng | `title.txt`, `titles.json`, `description.txt`, `tags.txt`, `pinned_comment.txt`, `tiktok_caption.txt` |
+| Tham khảo | `script_vi.txt`, `analysis.json` (điểm truyện), `cost.json`, `source_info.json` |
 
-Mỗi bước tự bỏ qua nếu file đầu ra đã có ⇒ bị ngắt giữa chừng (mất mạng, hết quota API) chỉ cần
-chạy lại đúng lệnh. Dịch được lưu theo từng chunk nên không mất tiền gọi lại đoạn đã dịch.
+File trung gian của từng video nằm trong `output/<slug>/`. Mỗi bước tự bỏ qua nếu đã có kết quả, nên bị ngắt giữa chừng chỉ cần chạy lại lệnh.
 
-## Các module
+## 9. Xử lý sự cố
 
-| Module | File | Ghi chú |
-|---|---|---|
-| 1. Thu thập | `autovideo/fetch.py` | yt-dlp; tìm theo từ khóa với `bilisearch`/`ytsearch`. Nguồn cần đăng nhập: `source.cookies_file`. |
-| 1. ASR | `autovideo/asr.py` | Faster-Whisper `large-v3`, VAD, ép xuất giản thể có dấu câu; khoảng lặng dài ⇒ xuống đoạn. |
-| 2. Dịch | `autovideo/translate.py`, `prompts/` | Chia chunk ~1500 ký tự, gửi kèm đuôi bản dịch trước + bảng thuật ngữ để giữ xưng hô/tên riêng nhất quán. Prompt thể loại ở `prompts/genres/*.md` — thêm thể loại mới chỉ cần thêm file. |
-| 4. Metadata | `prompts/metadata.md` | JSON: `youtube_title`, `description`, `tags`, `thumb_text` (2 dòng), `image_prompt`, `scene_prompts`, `intro`, `outro`. |
-| 3. TTS | `autovideo/tts.py` | Chia 200–300 chữ/đoạn ở ranh giới câu. `edge` (HoaiMy/NamMinh, rate/pitch) hoặc `command` để gọi F5-TTS/XTTS-v2 clone giọng. |
-| 4. Thumbnail | `autovideo/thumbnail.py`, `autovideo/comfyui.py` | ComfyUI API (Flux/SDXL) → Pillow: gradient tối vùng chữ, layer khung PNG của kênh, chữ tự co cỡ, viền + đổ bóng. Chưa bật ComfyUI thì dùng ảnh gradient giữ chỗ. |
-| 5. Render | `autovideo/render.py` | Xem bên dưới. |
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Không biết thiếu gì | `python -m autovideo doctor --online` |
+| "Truyện không đạt" quá nhiều | thêm từ khóa hoặc nguồn, thả truyện tuyển vào `inbox/`, hoặc hạ `quality.min_score` (không nên dưới 6) |
+| Hook dài hoặc ngắn quá | log cảnh báo; chỉnh `hook.words_per_minute` theo tốc độ giọng bạn dùng |
+| Bản dịch có đoạn lỗi | xem `output/<slug>/translate_qa.json`; xóa `story_vi.txt` và `translate_progress.json` để dịch lại |
+| Muốn đổi tiêu đề/thumbnail sau khi render | xóa `thumbnail*.jpg` rồi chạy `make <nguồn> --stages package` |
+| YouTube chặn tải (yêu cầu đăng nhập) | đặt `source.cookies_file` (xuất cookies từ trình duyệt) |
 
-### Render (FFmpeg)
-
-- **`mode: footage`** — bốc clip trong `assets/footage/<tone>/` (warm/dark/bright), chuẩn hóa 1 lần
-  (scale/crop 16:9, fps, `eq` hạ sáng, LUT `.cube`) và cache ở `assets/footage/.cache/`; mỗi video xáo
-  thứ tự khác nhau, không để 1 clip lặp liền nhau, rồi nối bằng stream copy (không encode lại).
-- **`mode: still`** — mỗi `scene_prompts` một ảnh, chia đều theo thời lượng; Ken Burns zoom in/out
-  dạng cos rất chậm (cảnh chẵn/lẻ ngược chiều), fade giữa cảnh, tùy chọn overlay (bụi/mưa/khói) blend
-  `screen`.
-- **Âm thanh** — playlist nhạc nền xáo trộn từ `assets/music/`; `ducking: sidechain` (sidechaincompress,
-  nhạc tự hạ khi có giọng) hoặc `fixed` (cố định -22 → -25 dB); fade in/out, `loudnorm` -16 LUFS.
-- **Encoder** — `auto` thử `h264_nvenc`, không được thì `libx264`.
-
-## Thư mục assets (tự chuẩn bị)
-
-```
-assets/
-  footage/warm|dark|bright/*.mp4   # footage nấu ăn / phong cảnh có bản quyền
-  music/*.mp3                      # nhạc nền có bản quyền / royalty-free
-  overlays/dust.mp4                # hiệu ứng nền đen (bụi, mưa, khói)
-  templates/frame.png              # khung thumbnail 1280x720 PNG trong suốt (logo, viền)
-  fonts/thumb.ttf                  # font Việt hóa
-  comfyui_workflow_api.json        # workflow export "API format", có {{PROMPT}} (và {{SEED}})
-  voice_ref.wav                    # mẫu giọng 10–30s cho F5-TTS/XTTS
-```
-
-## Lưu ý bật kiếm tiền
-
-- Dùng `mode: footage` đã chỉnh màu hoặc `mode: still` với 5–10 cảnh (`render.still.scenes`) — tránh 1 ảnh tĩnh cho cả video.
-- Giữ `channel.intro`/`channel.outro: true` để có lời dẫn và lời bình riêng của kênh (original commentary).
-- Bạn chịu trách nhiệm về bản quyền nội dung truyện gốc, footage và nhạc nền.
-
-## Test
+## 10. Phát triển
 
 ```bash
-python -m pytest -q     # offline: giả lập LLM, sinh media bằng FFmpeg lavfi
+python -m pytest -q    # 43 test offline: LLM/TTS giả lập, media sinh bằng FFmpeg, có test end-to-end đủ 7 bước
 ```
+
+Mã nguồn chính trong `autovideo/`:
+
+| Nhóm | Module |
+|---|---|
+| Điều phối | `pipeline.py` (7 bước) |
+| Nội dung | `analyze.py` (cổng chất lượng), `translate.py`, `hook.py` (hook, TikTok, Shorts), `package.py` (chương, mô tả, phương án) |
+| Âm thanh | `tts.py` |
+| Hình và video | `thumbnail.py`, `render.py` |
+| Đăng và theo dõi | `review.py` (bot), `youtube.py`, `analytics.py` |
+| Dễ dùng | `setup_wizard.py`, `doctor.py`, `brand.py` |
+
+Prompt nằm ở `prompts/`, mỗi thể loại một file trong `prompts/genres/`.
