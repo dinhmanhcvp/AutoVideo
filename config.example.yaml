@@ -11,7 +11,24 @@ auto:
   ready_dir: ready                 # ready/<ngày>_<slug>/{video.mp4, thumbnail.jpg, title.txt, description.txt, tags.txt}
   history_file: output/history.json
   max_attempts: 2                  # truyện lỗi quá số lần này sẽ bị bỏ qua vĩnh viễn
-  per_topic: 1                     # số video mới mỗi chủ đề mỗi lần chạy
+  per_topic: 1                     # số video mới mỗi chủ đề mỗi lần chạy (khi adaptive: false)
+  max_candidates_per_video: 5      # thử tối đa bấy nhiêu truyện để tìm 1 truyện đạt chuẩn
+  inbox_dir: inbox                 # thả truyện tự tuyển (.txt Trung/Việt) vào inbox/<chủ_đề>/ — làm trước
+  inbox_topic: null                # chủ đề cho file nằm thẳng trong inbox/ (null = chủ đề bật đầu tiên)
+  # Tự dồn sản lượng cho chủ đề ăn khách (cần youtube.enabled để có số liệu view):
+  adaptive: false
+  daily_total: 3                   # tổng số video mỗi lần chạy khi adaptive: true
+  adaptive_power: 1.0              # >1: dồn mạnh hơn cho chủ đề tốt nhất
+
+# ------------------------------------------------------------------ cổng chất lượng
+# Mỗi truyện được LLM chấm trước khi dịch (hook, tiền đề, twist, cảm xúc, nhịp, hợp khẩu vị Việt).
+# Truyện yếu / dở dang / không an toàn quảng cáo bị loại ở chế độ auto => không tốn tiền dịch, đọc, render.
+quality:
+  enabled: true
+  min_score: 6.5                   # thang 10; truyện "bình thường" ~5–6. Tăng lên 7 khi nguồn dồi dào
+  require_complete: true           # loại truyện chỉ có 1 tập/đoạn
+  require_ad_safe: true            # loại truyện 18+, bạo lực ghê rợn, chính trị
+  min_chars: 3000
 
 # ------------------------------------------------------------------ hook + TikTok
 # Video YouTube mở đầu bằng 1 đoạn HOOK 2–5 phút: khoảnh khắc gay cấn nhất của truyện, câu đầu gây sốc,
@@ -22,6 +39,15 @@ hook:
   min_minutes: 2
   max_minutes: 5
   words_per_minute: 170    # tốc độ đọc ước tính của giọng TTS để quy ra số chữ
+
+# YouTube Shorts (≤ 3 phút) cắt từ hook, dừng ở câu treo gần nhất + lời mời bấm sang video đầy đủ.
+# upload: true => khi bạn bấm Đăng video dài, bot tự đăng luôn Shorts có link sang video đó.
+shorts:
+  enabled: true
+  max_seconds: 175
+  upload: true
+  title_prefix: ""
+  banner: "Bản đầy đủ: bấm video liên quan ▼"
 
 tiktok:
   enabled: true
@@ -45,6 +71,8 @@ review:
   preview_head: 120      # giây đầu video trong clip xem thử
   preview_middle: 45     # + bấy nhiêu giây ở giữa video
   daily_run: "02:00"     # bot tự chạy `auto` mỗi ngày giờ này; null để tắt
+  report_weekday: 6      # gửi báo cáo kênh hằng tuần: 0=thứ Hai … 6=Chủ nhật; null để tắt
+  report_time: "20:00"
 
 # Khi bấm Đăng/Hẹn giờ trên điện thoại, PC tự upload lên YouTube.
 youtube:
@@ -55,6 +83,7 @@ youtube:
   declare_synthetic: true                      # khai báo nội dung dùng giọng AI
   timezone: Asia/Ho_Chi_Minh
   schedule_slots: ["19:30", "21:30"]           # nút "Hẹn giờ" chọn khung trống gần nhất
+  playlists: {}            # chủ đề -> ID playlist, vd {hai_huoc_gia_dinh: PLxxxx}: tự thêm video, mô tả có link
 
 # Mỗi chủ đề ghi đè được bất kỳ khóa nào ở trên (genre, tts, render...) => giọng, nhịp đọc,
 # tone footage riêng cho từng chủ đề.
@@ -134,6 +163,8 @@ channel:
   # Để null thì dùng tiêu đề SEO do LLM viết.
   title_template: "[Truyện Audio] {story_title} (Full) | {channel_name}"
   episode_start: 1         # số tập đầu tiên (đánh số tăng dần cho mọi video của kênh)
+  subscribe_url: null      # vd https://www.youtube.com/@tenkenh?sub_confirmation=1 (hiện trong mô tả)
+  description_footer: ""   # dòng cố định cuối mô tả (bản quyền, liên hệ…)
   # Phong cách hình ảnh cố định của kênh — được nối vào mọi image_prompt
   visual_style: "cinematic chinese ink painting, muted teal and amber palette, soft volumetric light, misty, 16:9"
   intro: true              # LLM viết lời dẫn ~30s mang dấu ấn kênh
@@ -159,8 +190,10 @@ asr:
 
 llm:
   provider: anthropic      # anthropic | gemini
-  model: claude-opus-5-5   # gemini: ví dụ gemini-2.5-pro
+  model: claude-opus-5-5   # chất lượng dịch/viết hook tốt nhất. Rẻ hơn: claude-sonnet-5-5. Gemini: gemini-2.5-pro
   effort: medium           # chỉ dùng cho anthropic: low | medium | high
+  price: null              # [input, output, cache_read, cache_write] USD/1M token nếu model không có trong bảng giá
+  qa_retries: 2            # dịch lại đoạn lỗi (sót chữ Hán, bị lược, bị từ chối) tối đa bấy nhiêu lần
   source_chunk_chars: 1500 # số ký tự tiếng Trung mỗi lần gửi dịch
   context_chars: 600       # đoạn dịch trước đó gửi kèm để giữ xưng hô nhất quán
   glossary:                # thuật ngữ / tên riêng cố định (Trung: Việt)
@@ -168,12 +201,24 @@ llm:
     灵气: "linh khí"
 
 tts:
-  engine: edge             # edge | command
-  voice: vi-VN-HoaiMyNeural  # hoặc vi-VN-NamMinhNeural
+  # edge:       miễn phí, giọng HoaiMy/NamMinh (nhiều kênh dùng => kém nổi bật)
+  # google:     Google Cloud TTS Chirp 3 HD — tự nhiên hơn hẳn, ~1–2 USD / video 1 tiếng (GOOGLE_TTS_API_KEY)
+  # elevenlabs: biểu cảm nhất, có clone giọng — đắt (ELEVENLABS_API_KEY)
+  # command:    gọi F5-TTS / XTTS-v2 chạy trên máy bạn
+  # Xem giọng có sẵn: python -m autovideo voices --engine google
+  engine: edge
+  voice: vi-VN-HoaiMyNeural  # (edge) hoặc vi-VN-NamMinhNeural
   rate: "-8%"
   pitch: "-4Hz"
   chunk_words: 250         # 200–300 chữ / đoạn đọc
   gap_ms: 450              # khoảng nghỉ giữa các đoạn
+  google:
+    voice: vi-VN-Chirp3-HD-Charon
+    speaking_rate: 0.95
+  elevenlabs:
+    voice_id: null
+    model_id: eleven_v3
+    stability: null
   # engine: command — gọi F5-TTS / XTTS-v2 local. Placeholder: {text_file} {text} {out}
   command: >-
     f5-tts_infer-cli --model F5TTS_v1_Base --ref_audio assets/voice_ref.wav

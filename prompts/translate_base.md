@@ -13,3 +13,6 @@ Nguyên tắc chung:
 
 Bảng thuật ngữ bắt buộc (Trung → Việt):
 {glossary}
+
+Nhân vật trong truyện (dùng đúng tên, giới tính, quan hệ để chọn xưng hô):
+{characters}

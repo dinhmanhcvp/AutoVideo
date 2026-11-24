@@ -10,14 +10,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-SCOPES = ["https://www.googleapis.com/auth/youtube"]  # upload + sửa trạng thái + xóa
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube",               # upload, sửa trạng thái, playlist
+    "https://www.googleapis.com/auth/yt-analytics.readonly",  # % giữ chân người xem cho báo cáo
+]
 
 
-def service(cfg: dict):
+def credentials(cfg: dict):
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build
 
     token = Path(cfg["token_file"])
     creds = Credentials.from_authorized_user_file(str(token), SCOPES) if token.exists() else None
@@ -28,7 +30,24 @@ def service(cfg: dict):
         creds = flow.run_local_server(port=0)
     token.parent.mkdir(parents=True, exist_ok=True)
     token.write_text(creds.to_json(), encoding="utf-8")
-    return build("youtube", "v3", credentials=creds, cache_discovery=False)
+    return creds
+
+
+def service(cfg: dict):
+    from googleapiclient.discovery import build
+
+    return build("youtube", "v3", credentials=credentials(cfg), cache_discovery=False)
+
+
+def analytics_service(cfg: dict):
+    from googleapiclient.discovery import build
+
+    return build("youtubeAnalytics", "v2", credentials=credentials(cfg), cache_discovery=False)
+
+
+def add_to_playlist(yt, playlist_id: str, video_id: str) -> None:
+    yt.playlistItems().insert(part="snippet", body={"snippet": {
+        "playlistId": playlist_id, "resourceId": {"kind": "youtube#video", "videoId": video_id}}}).execute()
 
 
 def upload(yt, video: Path, thumb: Path, meta: dict, cfg: dict, publish_at: datetime | None = None) -> str:

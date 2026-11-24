@@ -102,7 +102,15 @@ def notify(dest: Path, cfg: dict, topic: str = "", tg: Telegram | None = None) -
         info = json.loads((dest / "source_info.json").read_text(encoding="utf-8"))
         source = f"\nNguồn: {info.get('title') or ''} {info.get('webpage_url') or ''}"
 
-    tg.photo(dest / "thumbnail.jpg", caption=f"🎬 {title}\nChủ đề: {topic} · Dài {fmt_dur(duration)}{source}")
+    analysis = json.loads((dest / "analysis.json").read_text(encoding="utf-8")) if (dest / "analysis.json").exists() else {}
+    score = f" · Điểm truyện {analysis['score']}/10" if analysis.get("score") else ""
+    tg.photo(dest / "thumbnail.jpg", caption=f"🎬 {title}\nChủ đề: {topic} · Dài {fmt_dur(duration)}{score}{source}"
+                                             + (f"\n💬 {analysis['logline_vi']}" if analysis.get("logline_vi") else ""))
+    titles = json.loads((dest / "titles.json").read_text(encoding="utf-8")) if (dest / "titles.json").exists() else []
+    for n in (2, 3):  # các phương án tên/thumbnail khác — bấm để chọn
+        alt = dest / f"thumbnail_{n}.jpg"
+        if alt.exists() and len(titles) >= n:
+            tg.photo(alt, caption=f"Phương án {n}: {titles[n - 1]}", buttons=[[(f"👉 Chọn phương án {n}", f"var:{rid}:{n}")]])
     tiktok = dest / "tiktok.mp4"
     preview = dest / "preview.mp4"
     if tiktok.exists():
@@ -124,6 +132,9 @@ def notify(dest: Path, cfg: dict, topic: str = "", tg: Telegram | None = None) -
                 caption="📄 Toàn văn bản dịch (mở trên điện thoại để đọc)")
     desc = (dest / "description.txt").read_text(encoding="utf-8")
     tags = (dest / "tags.txt").read_text(encoding="utf-8")
+    pinned = dest / "pinned_comment.txt"
+    if pinned.exists() and pinned.read_text(encoding="utf-8").strip():
+        desc += "\n\n📌 BÌNH LUẬN GHIM (dán và ghim sau khi đăng):\n" + pinned.read_text(encoding="utf-8").strip()
     msg = tg.text(f"📝 TIÊU ĐỀ:\n{title}\n\n📄 MÔ TẢ:\n{desc}\n\n🏷 TAG: {tags}\n\n👉 Chọn thao tác:",
                   buttons=buttons_for(rid, cfg))
     reviews_store(cfg).update(rid, dest=str(dest), title=title, topic=topic, status="pending",
@@ -174,6 +185,42 @@ def do_publish(rid: str, cfg: dict, tg: Telegram, schedule: bool, yt_module=None
     else:
         store.update(rid, status="published", youtube_id=vid)
         tg.text(f"✅ Đã đăng công khai\n{url}")
+    playlist = (ycfg.get("playlists") or {}).get(rec.get("topic", ""))
+    if playlist:
+        try:
+            yt_mod.add_to_playlist(yt, playlist, vid)
+        except Exception as e:
+            tg.text(f"⚠️ Không thêm được vào playlist: {e}")
+    short = dest / "short.mp4"
+    if cfg.get("shorts", {}).get("upload") and short.exists():
+        try:
+            meta = _yt_meta(dest)
+            story = meta["youtube_title"]
+            sm = {"youtube_title": f"{cfg['shorts'].get('title_prefix', '')}{story}"[:90] + " #shorts",
+                  "description_full": f"▶ Nghe trọn bộ: {url}\n\n" + meta["description_full"][-400:],
+                  "tags": meta["tags"]}
+            sid = yt_mod.upload(yt, short, dest / "thumbnail.jpg", sm, ycfg, publish_at)
+            store.update(rid, shorts_id=sid)
+            tg.text(f"📱 Đã đăng Shorts: https://youtube.com/shorts/{sid}\n"
+                    "Mẹo: trong YouTube Studio → Shorts → \"Video liên quan\" chọn video dài để người xem bấm sang.")
+        except Exception as e:
+            tg.text(f"⚠️ Upload Shorts lỗi: {e}")
+    pinned = dest / "pinned_comment.txt"
+    if pinned.exists() and pinned.read_text(encoding="utf-8").strip():
+        tg.text("📌 Dán bình luận này dưới video rồi ghim lại:\n\n" + pinned.read_text(encoding="utf-8").strip())
+
+
+def do_select_variant(rid: str, n: int, cfg: dict, tg: Telegram):
+    """Đổi sang phương án tên + thumbnail số n (giữ lại bản gốc ở thumbnail_1.jpg)."""
+    rec = reviews_store(cfg).get(rid)
+    dest = Path(rec["dest"])
+    titles = json.loads((dest / "titles.json").read_text(encoding="utf-8"))
+    if not (dest / "thumbnail_1.jpg").exists():
+        shutil.copy(dest / "thumbnail.jpg", dest / "thumbnail_1.jpg")
+    shutil.copy(dest / f"thumbnail_{n}.jpg", dest / "thumbnail.jpg")
+    (dest / "title.txt").write_text(titles[n - 1], encoding="utf-8")
+    reviews_store(cfg).update(rid, title=titles[n - 1], variant=n)
+    tg.text(f"✅ Đã chọn phương án {n}:\n{titles[n - 1]}", buttons=buttons_for(rid, cfg))
 
 
 def do_approve_local(rid: str, cfg: dict, tg: Telegram):
@@ -233,9 +280,12 @@ class Bot:
         if cq := update.get("callback_query"):
             if str(cq["message"]["chat"]["id"]) != self.tg.chat_id:
                 return  # chỉ chủ kênh được bấm
-            action, rid = cq["data"].split(":", 1)
+            action, _, rest = cq["data"].partition(":")
+            rid, _, arg = rest.partition(":")
             self.tg.answer(cq["id"], "Đang xử lý…")
-            if action == "pub":
+            if action == "var":
+                do_select_variant(rid, int(arg), self.cfg, self.tg)
+            elif action == "pub":
                 self._bg(do_publish, rid, self.cfg, self.tg, False, self.yt_module)
             elif action == "sch":
                 self._bg(do_publish, rid, self.cfg, self.tg, True, self.yt_module)
@@ -267,6 +317,9 @@ class Bot:
             topics = text.split()[1:]
             ok = self.start_auto(topics)
             self.tg.text("▶️ Bắt đầu chạy, video xong sẽ gửi về đây." if ok else "⏳ Đang có lượt chạy khác.")
+        elif text.startswith("/report"):
+            self.tg.text("⏳ Đang lấy số liệu YouTube…")
+            self._bg(self.send_report)
         elif text.startswith("/status"):
             data = reviews_store(self.cfg).load().values()
             count = {}
@@ -283,18 +336,41 @@ class Bot:
             for rid, r in pend:
                 self.tg.text(f"⏳ {r['title']}", buttons=buttons_for(rid, self.cfg))
         elif text.startswith("/help") or text.startswith("/"):
-            self.tg.text("/run [chủ đề] – chạy ngay\n/status – tình trạng\n/pending – video chờ duyệt\n/id – xem chat id")
+            self.tg.text("/run [chủ đề] – chạy ngay\n/status – tình trạng\n/pending – video chờ duyệt\n"
+                         "/report – báo cáo view, giữ chân, chủ đề hiệu quả\n/id – xem chat id")
+
+    def send_report(self):
+        from .analytics import fetch_stats, report_text
+
+        try:
+            stats = fetch_stats(self.cfg) if self.cfg.get("youtube", {}).get("enabled") else None
+            self.tg.text(report_text(self.cfg, stats))
+        except Exception as e:
+            traceback.print_exc()
+            self.tg.text(f"⚠️ Không lấy được số liệu: {e}")
+
+    def _marker(self, kind: str) -> Path:
+        return Path(self.cfg["review"]["state_file"]).with_suffix(f".{kind}")
 
     def daily_tick(self, now: datetime | None = None):
-        at = self.cfg["review"].get("daily_run")
-        if not at:
-            return
         now = now or datetime.now()
-        # Đã qua giờ hẹn hôm nay mà chưa chạy (kể cả PC mới bật sau giờ đó) => chạy bù
-        if now.strftime("%H:%M") >= at and self.last_daily != now.date():
-            self.last_daily = now.date()
+        rcfg = self.cfg["review"]
+        at = rcfg.get("daily_run")
+        if self.last_daily is None and self._marker("lastrun").exists():
+            self.last_daily = self._marker("lastrun").read_text().strip()
+        # Đã qua giờ hẹn hôm nay mà chưa chạy (kể cả PC mới bật sau giờ đó) => chạy bù; nhớ qua khởi động lại
+        if at and now.strftime("%H:%M") >= at and self.last_daily != now.date().isoformat():
+            self.last_daily = now.date().isoformat()
+            self._marker("lastrun").write_text(self.last_daily)
             if self.start_auto():
                 self.tg.text(f"⏰ Bắt đầu lượt chạy hằng ngày ({at}).")
+        wd = rcfg.get("report_weekday")  # 0 = thứ Hai ... 6 = Chủ nhật
+        if wd is not None and now.weekday() == wd and now.strftime("%H:%M") >= rcfg.get("report_time", "20:00"):
+            week = now.strftime("%G-W%V")
+            marker = self._marker("lastreport")
+            if not marker.exists() or marker.read_text().strip() != week:
+                marker.write_text(week)
+                self._bg(self.send_report)
 
     def loop(self):
         print("Bot đang chạy. Ctrl+C để dừng.")

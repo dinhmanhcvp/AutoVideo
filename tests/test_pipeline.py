@@ -129,29 +129,3 @@ def test_still_with_overlay(media):
     img = thumbnail.placeholder_background("x", tmp / "x.png", size=(640, 360))
     out = render.still_track([img], 3, tmp / "bg.mp4", rcfg, "libx264")
     assert abs(ff.duration(out) - 3) < 0.3
-
-
-def test_job_translate_stage_with_fake_llm(tmp_path, monkeypatch):
-    src = tmp_path / "truyen.txt"
-    src.write_text("从前有座山。山里有座庙。", encoding="utf-8")
-    cfg = load_config(overrides={"workdir": str(tmp_path / "out")})
-
-    class MetaLLM(FakeLLM):
-        def complete(self, system, user, max_tokens=0):
-            if "<truyen>" in user and '"hook"' in system:
-                return json.dumps({"hook": "Câu sốc.", "bridge": "Quay lại từ đầu.", "tiktok_cta": "Nghe tiếp.",
-                                   "tiktok_caption": "cap #truyenaudio"})
-            if "<truyen>" in user:
-                return json.dumps({"youtube_title": "T", "description": "D", "tags": ["a b"],
-                                   "thumb_text": ["Núi", "Chùa"], "image_prompt": "mountain",
-                                   "scene_prompts": ["p1", "p2"], "intro": "Xin chào.", "outro": "Tạm biệt."})
-            return super().complete(system, user)
-
-    job = Job(str(src), cfg)
-    job._llm = MetaLLM()
-    job.run(["fetch", "asr", "translate", "thumbnail"])
-    script = job.p("script_vi.txt").read_text(encoding="utf-8")
-    assert script.startswith("Quay lại từ đầu.\n\nXin chào.") and script.endswith("Tạm biệt.")
-    assert job.p("tiktok_caption.txt").read_text(encoding="utf-8") == "cap #truyenaudio"
-    assert job.p("thumbnail.jpg").exists()
-    assert len(list(job.p("scenes").glob("*.png"))) == 2

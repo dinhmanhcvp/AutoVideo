@@ -60,13 +60,16 @@ def test_history_skips_done_and_same_title(tmp_path):
 
 def test_run_auto_exports_ready_folder(tmp_path, monkeypatch):
     class FakeJob:
-        def __init__(self, source, cfg, name=None):
+        def __init__(self, source, cfg, name=None, strict=False):
             self.cfg = cfg
             self.dir = tmp_path / "out" / auto.canonical_key(source).replace(":", "_")
             self.dir.mkdir(parents=True, exist_ok=True)
 
         def p(self, n):
             return self.dir / n
+
+        def read_json(self, n, default=None):
+            return default
 
         def run(self, stages=None):
             if stages == ["fetch"]:

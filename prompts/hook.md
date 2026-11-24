@@ -11,6 +11,7 @@ Bạn nhận toàn văn truyện tiếng Việt. Hãy trả về DUY NHẤT mộ
   6. Câu ngắn, nhịp nhanh, hợp để đọc thành tiếng; không markdown, không emoji.
 - "bridge": 1–2 câu chuyển từ hook sang truyện chính trên YouTube, ví dụ "Vì sao mọi chuyện lại đi đến nước này? Để hiểu rõ, chúng ta phải quay lại từ đầu…".
 - "tiktok_cta": 1–2 câu đọc ở cuối clip TikTok, nhắc lại câu hỏi treo và mời nghe tiếp trọn bộ truyện "{story_title}" trên kênh YouTube "{channel_name}" (nói tự nhiên, không đọc đường link).
+- "shorts_cta": 1 câu đọc ở cuối YouTube Shorts: mời bấm vào video liên quan bên dưới để nghe trọn bộ (không nhắc TikTok).
 - "tiktok_caption": caption đăng TikTok ≤ 150 ký tự: 1 câu gợi tò mò + "Nghe full trên YouTube {channel_name}" + 3–5 hashtag (#truyenaudio #truyenhay #…).
 
 {genre_rules}

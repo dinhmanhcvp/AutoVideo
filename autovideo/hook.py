@@ -30,7 +30,7 @@ def make_hook(llm, vi_text: str, meta: dict, cfg: dict) -> dict:
         min_words=int(hcfg["min_minutes"] * wpm), max_words=int(hcfg["max_minutes"] * wpm),
         genre_rules=load_prompt(f"genres/{cfg['genre']}.md"),
     )
-    data = extract_json(llm.complete(system, f"<truyen>\n{vi_text}\n</truyen>", max_tokens=16000))
+    data = extract_json(llm.complete(system, "", max_tokens=16000, doc=f"<truyen>\n{vi_text}\n</truyen>"))
     if not data.get("hook"):
         raise ValueError("LLM không trả về hook")
     data.setdefault("bridge", "")
@@ -167,21 +167,16 @@ def caption_track(captions: list[dict], offset: float, total: float, tdir: Path,
     return lst
 
 
-def render_tiktok(work: Path, meta: dict, hook_wav: Path, captions: list[dict], cta_wav: Path | None,
-                  cfg: dict) -> Path:
+def render_vertical(work: Path, meta: dict, voice: Path, captions: list[dict], cfg: dict, out: Path,
+                    banner: str, sub: str) -> Path:
+    """Dựng clip dọc 1080x1920 từ giọng đọc + phụ đề. Dùng chung cho TikTok và YouTube Shorts."""
     from .render import mix_audio
-    from .tts import concat_wavs, silence
 
     tk = cfg["tiktok"]
-    tdir = work / "tiktok"
+    tdir = work / sub
     tdir.mkdir(exist_ok=True)
     tcfg = cfg["thumbnail"]
     channel = cfg["channel"]["name"]
-
-    parts = [hook_wav]
-    if cta_wav:
-        parts += [silence(tdir / "pause.wav", 0.6), cta_wav]
-    voice = concat_wavs(parts, tdir / "voice.wav", tdir / "voice.txt")
 
     rcfg = json.loads(json.dumps(cfg["render"]))
     rcfg["lead_in"], rcfg["tail"] = tk.get("lead_in", 0.2), tk.get("tail", 1.5)
@@ -190,13 +185,12 @@ def render_tiktok(work: Path, meta: dict, hook_wav: Path, captions: list[dict], 
     audio = mix_audio(voice, total, tdir / "mix.m4a", rcfg, seed=1)
 
     badge = (tk.get("badge") or "").replace("{channel_name}", channel).replace("{episode}", str(meta.get("episode", "")))
-    banner = tk.get("banner", "Nghe trọn bộ trên YouTube: {channel_name}").replace("{channel_name}", channel)
-    frame = tiktok_frame(work / "thumb_bg.png", meta, tdir / "frame.png", tcfg, banner, badge)
+    frame = tiktok_frame(work / "thumb_bg.png", meta, tdir / "frame.png", tcfg,
+                         banner.replace("{channel_name}", channel), badge)
     caps = caption_track(captions, rcfg["lead_in"], total, tdir / "captions",
                          tk.get("caption_font"), tk.get("caption_font_variation"))
-
-    out = work / "tiktok.mp4"
     fps = tk.get("fps", 24)
+    kbps = tk.get("max_video_kbps", 1000)
     ff.run([
         "-loop", "1", "-framerate", fps, "-i", frame,
         "-f", "concat", "-safe", "0", "-i", caps,
@@ -205,7 +199,65 @@ def render_tiktok(work: Path, meta: dict, hook_wav: Path, captions: list[dict], 
         "-map", "[v]", "-map", "2:a", "-t", f"{total:.3f}",
         # Giới hạn bitrate: clip 5 phút ~40 MB, vừa giới hạn 50 MB của bot Telegram
         "-c:v", "libx264", "-preset", cfg["render"].get("x264_preset") or "veryfast", "-tune", "stillimage",
-        "-crf", "24", "-maxrate", tk.get("max_video_kbps", 1000) * 1000, "-bufsize", tk.get("max_video_kbps", 1000) * 2000,
+        "-crf", "24", "-maxrate", kbps * 1000, "-bufsize", kbps * 2000,
         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", out,
     ])
     return out
+
+
+def render_tiktok(work: Path, meta: dict, hook_wav: Path, captions: list[dict], cta_wav: Path | None,
+                  cfg: dict) -> Path:
+    from .tts import concat_wavs, silence
+
+    tdir = work / "tiktok"
+    tdir.mkdir(exist_ok=True)
+    parts = [hook_wav]
+    if cta_wav:
+        parts += [silence(tdir / "pause.wav", 0.6), cta_wav]
+    voice = concat_wavs(parts, tdir / "voice.wav", tdir / "voice.txt")
+    banner = cfg["tiktok"].get("banner", "Nghe trọn bộ trên YouTube: {channel_name}")
+    return render_vertical(work, meta, voice, captions, cfg, work / "tiktok.mp4", banner, "tiktok")
+
+
+def cut_for_shorts(sentences: list[dict], captions: list[dict], budget: float) -> tuple[list[dict], list[dict]]:
+    """Giữ các câu đầu của hook sao cho tổng ≤ budget giây; ưu tiên dừng ở câu kết thúc bằng '?' hoặc '…'
+    (điểm treo tự nhiên) nếu nó nằm trong 70% cuối ngân sách."""
+    kept = [s for s in sentences if s["end"] <= budget]
+    if not kept:
+        kept = sentences[:1]
+    for i in range(len(kept) - 1, -1, -1):
+        if kept[i]["text"].rstrip().endswith(("?", "…", "...")) and kept[i]["end"] >= budget * 0.7:
+            kept = kept[: i + 1]
+            break
+    cutoff = kept[-1]["end"]
+    return kept, [c for c in captions if c["end"] <= cutoff + 0.01]
+
+
+def render_short(job, meta: dict) -> Path:
+    """YouTube Shorts (≤ 3 phút): hook — cắt ở ranh giới câu nếu dài — + lời mời nghe bản đầy đủ.
+    Trên YouTube Studio, gắn "Video liên quan" của Shorts tới video dài để người xem bấm sang ngay."""
+    from .tts import concat_wavs, silence
+
+    cfg = job.cfg
+    scfg = cfg["shorts"]
+    work = job.dir
+    sdir = work / "shorts"
+    sdir.mkdir(exist_ok=True)
+    cta = work / "tts" / "cta_shorts" / "0000.norm.wav"
+    if not cta.exists():
+        cta = work / "tts" / "cta" / "0000.norm.wav"
+    cta_dur = ff.duration(cta) + 0.6 if cta.exists() else 0
+    tk = cfg["tiktok"]
+    budget = scfg.get("max_seconds", 175) - tk.get("lead_in", 0.2) - tk.get("tail", 1.5) - cta_dur
+    sentences = json.loads((work / "hook_sentences.json").read_text(encoding="utf-8"))
+    captions = json.loads((work / "hook_captions.json").read_text(encoding="utf-8"))
+    kept, caps = cut_for_shorts(sentences, captions, budget)
+    pause = silence(sdir / "pause.wav", 0.25)
+    parts: list[Path] = []
+    for s in kept:
+        parts += [Path(s["wav"]), pause]
+    if cta.exists():
+        parts += [silence(sdir / "pause_cta.wav", 0.35), cta]
+    voice = concat_wavs(parts, sdir / "voice.wav", sdir / "voice.txt")
+    return render_vertical(work, meta, voice, caps, cfg, work / "short.mp4",
+                           scfg.get("banner", "Bản đầy đủ: bấm video liên quan ▼"), "shorts")
