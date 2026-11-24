@@ -101,7 +101,8 @@ class Job:
         from .thumbnail import compose, make_background
 
         meta = json.loads(self.p("metadata.json").read_text(encoding="utf-8"))
-        tcfg = self.cfg["thumbnail"]
+        tcfg = dict(self.cfg["thumbnail"])
+        tcfg["badge"] = (tcfg.get("badge") or "").replace("{channel_name}", self.cfg["channel"]["name"])
         bg = self.p("thumb_bg.png")
         if not bg.exists():
             make_background(meta["image_prompt"], bg, tcfg)
@@ -126,7 +127,11 @@ class Job:
             return
         from .render import render
 
-        images = sorted(self.p("scenes").glob("*.png")) if self.p("scenes").exists() else []
+        mode = self.cfg["render"]["mode"]
+        if mode == "thumbnail":
+            images = [self.p("thumbnail.jpg")]
+        else:
+            images = sorted(self.p("scenes").glob("*.png")) if self.p("scenes").exists() else []
         if not images:
             images = [self.p("thumb_bg.png")]
         render(self.p("voice.wav"), images, self.dir, self.cfg["render"])

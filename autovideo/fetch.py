@@ -4,19 +4,27 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def search(keyword: str, site: str = "bilisearch", limit: int = 3) -> list[str]:
-    """Tìm theo từ khóa, trả về danh sách URL. site: bilisearch | ytsearch."""
+def search(keyword: str, site: str = "bilisearch", limit: int = 3) -> list[dict]:
+    """Tìm theo từ khóa. site: bilisearch (Bilibili) | ytsearch (YouTube).
+    Trả về [{url, title, duration, site}] — duration (giây) có thể None nếu nguồn không cung cấp."""
     import yt_dlp
 
-    opts = {"quiet": True, "extract_flat": True, "skip_download": True}
+    opts = {"quiet": True, "extract_flat": True, "skip_download": True, "ignoreerrors": True}
     with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f"{site}{limit}:{keyword}", download=False)
-    urls = []
+        info = ydl.extract_info(f"{site}{limit}:{keyword}", download=False) or {}
+    results = []
     for entry in info.get("entries") or []:
+        if not entry:
+            continue
         url = entry.get("webpage_url") or entry.get("url")
         if url:
-            urls.append(url)
-    return urls
+            results.append({
+                "url": url,
+                "title": entry.get("title") or "",
+                "duration": entry.get("duration"),
+                "site": site,
+            })
+    return results
 
 
 def download_audio(url: str, out_dir: Path, cookies_file: str | None = None) -> tuple[Path, dict]:

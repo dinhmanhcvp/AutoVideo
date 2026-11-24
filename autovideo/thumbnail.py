@@ -104,5 +104,17 @@ def compose(background: Path, lines: list[str], out: Path, cfg: dict) -> Path:
         draw.text((x0, y), ln, font=font, fill=cfg["text_color"], stroke_width=stroke, stroke_fill=cfg["stroke_color"])
         y += int(lh * 1.08)
 
+    badge = (cfg.get("badge") or "").strip()
+    if badge:
+        bfont = _font(cfg.get("font"), max(18, H // 22))
+        pad_x, pad_y = H // 45, H // 90
+        l, t, r, b = draw.textbbox((0, 0), badge, font=bfont)
+        bx, by = x0, round(H * 0.05)
+        draw.rounded_rectangle(
+            (bx, by, bx + (r - l) + 2 * pad_x, by + (b - t) + 2 * pad_y),
+            radius=pad_y * 2, fill=cfg.get("badge_color", "#B8322A"),
+        )
+        draw.text((bx + pad_x - l, by + pad_y - t), badge, font=bfont, fill="#FFFFFF")
+
     img.convert("RGB").save(out, quality=92)
     return out

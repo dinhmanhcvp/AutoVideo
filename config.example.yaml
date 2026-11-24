@@ -2,7 +2,46 @@
 
 workdir: output            # mỗi video có 1 thư mục con: output/<slug>/
 
-genre: co_trang            # co_trang | hien_dai  (tên file trong prompts/genres/)
+genre: co_trang            # co_trang | hien_dai | tam_su | kinh_di  (tên file trong prompts/genres/)
+
+# ------------------------------------------------------------------ chế độ tự động
+# `python -m autovideo auto` duyệt từng chủ đề: tìm truyện mới trên nhiều nguồn, bỏ truyện đã làm,
+# chạy trọn pipeline, rồi gom thành phẩm vào ready_dir để bạn chỉ việc đăng.
+auto:
+  ready_dir: ready                 # ready/<ngày>_<slug>/{video.mp4, thumbnail.jpg, title.txt, description.txt, tags.txt}
+  history_file: output/history.json
+  max_attempts: 2                  # truyện lỗi quá số lần này sẽ bị bỏ qua vĩnh viễn
+  per_topic: 1                     # số video mới mỗi chủ đề mỗi lần chạy
+
+# Mỗi chủ đề ghi đè được bất kỳ khóa nào ở trên (genre, tts, render...) => giọng, nhịp đọc,
+# tone footage riêng cho từng chủ đề.
+topics:
+  - name: co_trang_tu_tien
+    keywords: ["古风 有声小说 完结", "仙侠 有声书 一口气听完", "修仙 小说 广播剧"]
+    sites: [bilisearch, ytsearch]  # bilisearch = Bilibili, ytsearch = YouTube (nhiều kênh TQ re-up Ximalaya/喜马拉雅)
+    min_minutes: 20                # bỏ clip ngắn / trailer
+    max_minutes: 150
+    genre: co_trang
+    tts: {voice: vi-VN-NamMinhNeural, rate: "-6%", pitch: "-6Hz"}
+    render: {mode: still}
+
+  - name: tam_su_dem_khuya
+    keywords: ["深夜电台 情感故事", "睡前故事 情感 治愈", "深夜情感 真实故事"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 15
+    max_minutes: 90
+    genre: tam_su
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "-10%", pitch: "-3Hz"}
+    render: {mode: footage, footage: {tone: warm}}
+
+  - name: ngon_tinh_hien_dai
+    keywords: ["现代言情 有声小说 完结", "甜宠 有声书 全集"]
+    sites: [bilisearch, ytsearch]
+    min_minutes: 20
+    max_minutes: 150
+    genre: hien_dai
+    tts: {voice: vi-VN-HoaiMyNeural, rate: "-5%", pitch: "+0Hz"}
+    render: {mode: footage, footage: {tone: bright}}
 
 channel:
   name: "Đêm Nghe Truyện"
@@ -53,6 +92,8 @@ thumbnail:
   text_color: "#FFE9A8"
   stroke_color: "#000000"
   text_box: [0.05, 0.50, 0.62, 0.95]     # vùng đặt chữ (tỷ lệ x0,y0,x1,y1)
+  badge: "{channel_name}"                # nhãn nhỏ góc trên trái (tên kênh / series); "" để tắt
+  badge_color: "#B8322A"
   comfyui:
     enabled: false
     url: http://127.0.0.1:8188
@@ -60,7 +101,7 @@ thumbnail:
     timeout: 600
 
 render:
-  mode: still              # footage | still
+  mode: still              # footage | still (ảnh minh họa theo cảnh) | thumbnail (chỉ dùng ảnh thumbnail làm nền)
   resolution: [1920, 1080]
   fps: 30
   encoder: auto            # auto | h264_nvenc | libx264

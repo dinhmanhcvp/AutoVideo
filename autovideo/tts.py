@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shlex
 import subprocess
 from pathlib import Path
@@ -28,15 +29,19 @@ async def _edge_one(text: str, out: Path, voice: str, rate: str, pitch: str, ret
             await asyncio.sleep(2 * (attempt + 1))
 
 
+def _quote(s: str) -> str:
+    return subprocess.list2cmdline([s]) if os.name == "nt" else shlex.quote(s)
+
+
 def _command_one(text: str, out: Path, template: str) -> None:
     text_file = out.with_suffix(".txt")
     text_file.write_text(text, encoding="utf-8")
     cmd = template.format(
-        text_file=shlex.quote(str(text_file)),
-        text=shlex.quote(text),
-        out=shlex.quote(str(out)),
-        out_dir=shlex.quote(str(out.parent)),
-        out_name=shlex.quote(out.name),
+        text_file=_quote(str(text_file)),
+        text=_quote(text),
+        out=_quote(str(out)),
+        out_dir=_quote(str(out.parent)),
+        out_name=_quote(out.name),
     )
     subprocess.run(cmd, shell=True, check=True)
     if not out.exists():

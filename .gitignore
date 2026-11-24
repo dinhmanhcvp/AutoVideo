@@ -9,3 +9,5 @@ assets/music/*
 assets/overlays/*
 assets/voice_ref.wav
 cookies.txt
+logs/
+ready/

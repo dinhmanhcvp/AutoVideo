@@ -1,0 +1,167 @@
+"""Chế độ tự động: chủ đề -> tìm truyện mới trên nhiều nguồn -> pipeline -> thư mục ready/ để đăng."""
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import time
+import traceback
+import unicodedata
+from datetime import date
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+from .config import _deep_merge
+from .pipeline import STAGES, Job, slugify
+
+TOPIC_ONLY_KEYS = {"name", "keywords", "sites", "min_minutes", "max_minutes"}
+
+
+def topic_config(cfg: dict, topic: dict) -> dict:
+    """Config của 1 chủ đề = config chung đè bởi các khóa trong topic (genre, tts, render...)."""
+    return _deep_merge(cfg, {k: v for k, v in topic.items() if k not in TOPIC_ONLY_KEYS})
+
+
+def canonical_key(url: str) -> str:
+    """Bilibili BVxxxx / YouTube v=... / URL không query — để nhận ra cùng một video."""
+    u = urlparse(url)
+    bv = re.search(r"(BV[0-9A-Za-z]{10})", url)
+    if bv:
+        return f"bilibili:{bv.group(1)}"
+    if "youtube.com" in u.netloc or "youtu.be" in u.netloc:
+        vid = parse_qs(u.query).get("v", [u.path.strip("/").split("/")[-1]])[0]
+        return f"youtube:{vid}"
+    return f"{u.netloc}{u.path}".rstrip("/")
+
+
+def title_key(title: str) -> str:
+    """Dấu vân tay tiêu đề — bắt truyện bị re-up trùng giữa Bilibili và YouTube."""
+    t = unicodedata.normalize("NFKC", title or "").lower()
+    t = re.sub(r"【.*?】|\[.*?\]|（.*?）|\(.*?\)", "", t)  # bỏ tag kiểu 【有声书】
+    t = re.sub(r"[\W_]+", "", t)
+    return t[:40]
+
+
+class History:
+    def __init__(self, path: Path):
+        self.path = path
+        self.data: dict = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+    def _save(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    def should_skip(self, cand: dict, max_attempts: int) -> str | None:
+        rec = self.data.get(canonical_key(cand["url"]))
+        if rec:
+            if rec["status"] in ("done", "skipped"):
+                return rec["status"]
+            if rec.get("attempts", 0) >= max_attempts:
+                return "quá số lần lỗi"
+        tk = title_key(cand.get("title", ""))
+        if tk and len(tk) >= 6:
+            for r in self.data.values():
+                if r.get("title_key") == tk and r["status"] == "done":
+                    return "trùng tiêu đề"
+        return None
+
+    def mark(self, cand: dict, status: str, topic: str, **extra):
+        key = canonical_key(cand["url"])
+        rec = self.data.setdefault(key, {"attempts": 0})
+        rec.update(url=cand["url"], title=cand.get("title", ""), title_key=title_key(cand.get("title", "")),
+                   topic=topic, status=status, updated=time.strftime("%Y-%m-%d %H:%M"), **extra)
+        if status == "failed":
+            rec["attempts"] = rec.get("attempts", 0) + 1
+        self._save()
+
+
+def duration_ok(seconds, topic: dict) -> bool:
+    if seconds is None:
+        return True  # nguồn không báo độ dài — kiểm tra lại sau khi tải
+    minutes = seconds / 60
+    return topic.get("min_minutes", 0) <= minutes <= topic.get("max_minutes", 10**6)
+
+
+def discover(topic: dict, want: int, search_fn=None) -> list[dict]:
+    """Tìm ứng viên trên mọi (từ khóa × nguồn), xen kẽ các nguồn, lọc độ dài, bỏ trùng."""
+    if search_fn is None:
+        from .fetch import search as search_fn
+    per_query = max(5, want * 4)
+    buckets: list[list[dict]] = []
+    for kw in topic["keywords"]:
+        for site in topic.get("sites", ["bilisearch"]):
+            try:
+                found = search_fn(kw, site, per_query)
+            except Exception as e:  # 1 nguồn lỗi không chặn nguồn khác
+                print(f"  [tìm] lỗi {site} '{kw}': {e}")
+                continue
+            buckets.append([r for r in found if duration_ok(r.get("duration"), topic)])
+    seen, out = set(), []
+    for i in range(max((len(b) for b in buckets), default=0)):  # round-robin giữa các nguồn
+        for b in buckets:
+            if i < len(b) and (k := canonical_key(b[i]["url"])) not in seen:
+                seen.add(k)
+                out.append(b[i])
+    return out
+
+
+def export(job: Job, ready_dir: Path) -> Path:
+    meta = json.loads(job.p("metadata.json").read_text(encoding="utf-8"))
+    dest = ready_dir / f"{date.today().isoformat()}_{slugify(meta.get('youtube_title', ''), 60) or job.dir.name}"
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy(job.p("video.mp4"), dest / "video.mp4")
+    shutil.copy(job.p("thumbnail.jpg"), dest / "thumbnail.jpg")
+    (dest / "title.txt").write_text(meta.get("youtube_title", ""), encoding="utf-8")
+    (dest / "description.txt").write_text(job.p("youtube_description.txt").read_text(encoding="utf-8"), encoding="utf-8")
+    (dest / "tags.txt").write_text(", ".join(meta.get("tags", [])), encoding="utf-8")
+    src = job.p("source_info.json")
+    if src.exists():
+        shutil.copy(src, dest / "source_info.json")  # để bạn tra lại nguồn gốc khi cần
+    return dest
+
+
+def run_auto(cfg: dict, topics: list[str] | None = None, per_topic: int | None = None,
+             dry_run: bool = False, search_fn=None) -> list[Path]:
+    acfg = cfg["auto"]
+    history = History(Path(acfg["history_file"]))
+    ready = Path(acfg["ready_dir"])
+    produced: list[Path] = []
+
+    for topic in cfg.get("topics") or []:
+        name = topic["name"]
+        if topics and name not in topics:
+            continue
+        need = per_topic or acfg.get("per_topic", 1)
+        tcfg = topic_config(cfg, topic)
+        print(f"=== Chủ đề: {name} (cần {need}) ===")
+        made = 0
+        for cand in discover(topic, need, search_fn):
+            if made >= need:
+                break
+            if reason := history.should_skip(cand, acfg.get("max_attempts", 2)):
+                continue
+            print(f"→ {cand.get('title', '')[:60]}  [{cand['url']}]")
+            if dry_run:
+                made += 1
+                continue
+            job = Job(cand["url"], tcfg)
+            try:
+                job.run(["fetch"])
+                info_file = job.p("source_info.json")
+                if info_file.exists():
+                    dur = json.loads(info_file.read_text(encoding="utf-8")).get("duration")
+                    if not duration_ok(dur, topic):
+                        history.mark(cand, "skipped", name, reason="độ dài không hợp")
+                        continue
+                job.run([s for s in STAGES if s != "fetch"])
+                dest = export(job, ready)
+                history.mark(cand, "done", name, output=str(dest))
+                produced.append(dest)
+                made += 1
+                print(f"✔ Sẵn sàng đăng: {dest}")
+            except Exception as e:
+                traceback.print_exc()
+                history.mark(cand, "failed", name, error=str(e)[:300])
+        if made < need:
+            print(f"  [!] Chủ đề {name}: chỉ có {made}/{need} truyện mới — thêm từ khóa hoặc tăng nguồn.")
+    return produced

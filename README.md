@@ -23,7 +23,42 @@ export ANTHROPIC_API_KEY=...     # nếu llm.provider: anthropic
 export GEMINI_API_KEY=...        # nếu llm.provider: gemini
 ```
 
-## Chạy
+## Chế độ tự động hoàn toàn
+
+Khai báo các **chủ đề** trong `config.yaml` → `topics:`. Mỗi chủ đề có: từ khóa tiếng Trung, các nguồn tìm
+(`bilisearch` = Bilibili, `ytsearch` = YouTube), độ dài truyện chấp nhận, thể loại văn phong (`genre`),
+giọng đọc/tốc độ/cao độ riêng (`tts`), và cách dựng hình riêng (`render`: footage tone nào, ảnh minh họa
+hay chỉ dùng thumbnail).
+
+```bash
+python -m autovideo auto -c config.yaml --dry-run          # xem trước sẽ lấy truyện nào
+python -m autovideo auto -c config.yaml                    # chạy thật, mọi chủ đề
+python -m autovideo auto -c config.yaml --topic tam_su_dem_khuya --per-topic 2
+```
+
+Mỗi lần chạy, với từng chủ đề:
+1. Tìm trên mọi (từ khóa × nguồn), xen kẽ nguồn, lọc theo độ dài.
+2. Bỏ truyện đã làm (`output/history.json`), kể cả bản re-up trùng tiêu đề ở nguồn khác; truyện lỗi quá `max_attempts` lần thì bỏ qua.
+3. Chạy trọn pipeline với giọng và văn phong của chủ đề.
+4. Gom thành phẩm vào **`ready/<ngày>_<tiêu-đề>/`**: `video.mp4`, `thumbnail.jpg`, `title.txt`, `description.txt`, `tags.txt`, `source_info.json`. Bạn chỉ việc mở thư mục và đăng.
+
+**Lên lịch hằng ngày trên Windows** (ví dụ 2 giờ sáng, lúc PC rảnh GPU):
+
+```bat
+schtasks /Create /TN AutoVideo /SC DAILY /ST 02:00 /TR "C:\duong-dan\AutoVideo\scripts\run_auto.bat"
+```
+
+Log ghi ở `logs\auto.log`.
+
+### 3 kiểu hình nền (`render.mode`, đặt riêng theo chủ đề)
+
+| mode | Hình | Hợp với |
+|---|---|---|
+| `footage` | Ghép footage nấu ăn/chill cùng tone (`assets/footage/<tone>/`), xáo thứ tự, lặp đủ độ dài, áp LUT chung | tâm sự, hiện đại |
+| `still` | 5–10 ảnh minh họa theo diễn biến truyện, Ken Burns + overlay bụi/mưa | cổ trang, tu tiên |
+| `thumbnail` | Chỉ dùng chính thumbnail (có tiêu đề) làm nền, zoom chậm | nhanh, nhẹ nhất |
+
+## Chạy thủ công
 
 ```bash
 # 1 video từ URL (Bilibili / Douyin / YouTube / Ximalaya…)

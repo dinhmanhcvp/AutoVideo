@@ -33,7 +33,8 @@ def _normalize_clip(src: Path, cache: Path, rcfg: dict, encoder: str) -> Path:
         f"eq=brightness={fcfg.get('brightness') or 0}",
     ]
     if fcfg.get("lut"):
-        vf.append(f"lut3d=file='{Path(fcfg['lut']).resolve()}'")
+        lut = Path(fcfg["lut"]).resolve().as_posix().replace(":", r"\:")  # an toàn với C:/ trên Windows
+        vf.append(f"lut3d=file='{lut}'")
     vf.append("format=yuv420p")
     tmp = out.with_suffix(".tmp.mp4")
     ff.run(["-i", src, "-an", "-vf", ",".join(vf), *ff.video_codec_args(encoder), tmp])
@@ -176,7 +177,7 @@ def render(voice: Path, images: list[Path], work: Path, rcfg: dict) -> Path:
     audio = mix_audio(voice, total, rdir / "mix.m4a", rcfg, seed=rcfg["footage"].get("seed"))
     if rcfg["mode"] == "footage":
         video = footage_track(total, rdir / "bg.mp4", rcfg, encoder)
-    elif rcfg["mode"] == "still":
+    elif rcfg["mode"] in ("still", "thumbnail"):
         video = still_track(images, total, rdir / "bg.mp4", rcfg, encoder)
     else:
         raise ValueError(f"render.mode không hỗ trợ: {rcfg['mode']}")
