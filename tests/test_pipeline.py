@@ -138,6 +138,9 @@ def test_job_translate_stage_with_fake_llm(tmp_path, monkeypatch):
 
     class MetaLLM(FakeLLM):
         def complete(self, system, user, max_tokens=0):
+            if "<truyen>" in user and '"hook"' in system:
+                return json.dumps({"hook": "Câu sốc.", "bridge": "Quay lại từ đầu.", "tiktok_cta": "Nghe tiếp.",
+                                   "tiktok_caption": "cap #truyenaudio"})
             if "<truyen>" in user:
                 return json.dumps({"youtube_title": "T", "description": "D", "tags": ["a b"],
                                    "thumb_text": ["Núi", "Chùa"], "image_prompt": "mountain",
@@ -148,6 +151,7 @@ def test_job_translate_stage_with_fake_llm(tmp_path, monkeypatch):
     job._llm = MetaLLM()
     job.run(["fetch", "asr", "translate", "thumbnail"])
     script = job.p("script_vi.txt").read_text(encoding="utf-8")
-    assert script.startswith("Xin chào.") and script.endswith("Tạm biệt.")
+    assert script.startswith("Quay lại từ đầu.\n\nXin chào.") and script.endswith("Tạm biệt.")
+    assert job.p("tiktok_caption.txt").read_text(encoding="utf-8") == "cap #truyenaudio"
     assert job.p("thumbnail.jpg").exists()
     assert len(list(job.p("scenes").glob("*.png"))) == 2

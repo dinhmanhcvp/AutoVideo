@@ -59,6 +59,35 @@ Log ghi ở `logs\auto.log`.
 - **Mỗi chủ đề một màu giấy, màu chữ và phong cách ảnh riêng** (cấu hình trong `topics:`). Ví dụ: hài thì chibi nền vàng, phá án thì anime tối màu đỏ-xanh navy, ngôn tình thì ảnh aesthetic.
 - Chạy `python scripts/get_fonts.py` một lần để tải font (Anton, Baloo 2, Oswald; có tiếng Việt, giấy phép OFL).
 
+### Hook 2–5 phút + clip TikTok kéo người xem sang YouTube
+
+Mỗi video YouTube được dựng theo thứ tự:
+
+```
+[HOOK 2–5 phút] → câu chuyển → lời dẫn kênh → truyện từ đầu → lời bình cuối
+```
+
+**Hook** (`prompts/hook.md`) do LLM viết từ toàn văn truyện:
+- Chọn khoảnh khắc gay cấn hoặc buồn cười nhất của truyện.
+- **Câu đầu tiên gây sốc, nói được trong 5 giây, vào thẳng sự việc**, không chào hỏi.
+- Cứ mỗi 30–60 giây lại có thêm một chi tiết khiến người nghe tò mò hơn.
+- **Dừng đúng ở cao trào, không lộ kết hay cú twist.**
+
+Giọng đọc vào ngay từ giây 0,5 (`render.lead_in`).
+
+**Clip TikTok** `tiktok.mp4` (dọc 1080×1920) được cắt từ chính đoạn hook:
+- Nhãn kênh và số tập, **tên truyện chữ lớn**, ảnh minh họa.
+- **Phụ đề cháy chữ đồng bộ từng câu**, vì nhiều người lướt TikTok tắt tiếng.
+- Banner đỏ "▶ Nghe trọn bộ trên YouTube: Tên kênh".
+- Cuối clip có câu kêu gọi được đọc thành tiếng (LLM viết theo đúng câu hỏi treo của truyện).
+- Kèm `tiktok_caption.txt` (caption và hashtag).
+- Bố cục tránh vùng giao diện TikTok che (đáy màn hình, cột nút bên phải).
+- Dung lượng giới hạn khoảng 40 MB cho 5 phút, vừa gửi qua bot Telegram.
+
+Trên điện thoại, bot gửi **clip TikTok** và **caption riêng một tin** để chạm-giữ sao chép. Bạn lưu video về máy rồi đăng TikTok ngay.
+
+Chỉnh độ dài trong `hook:` (min/max phút). Nếu hook đọc ra lệch quá 20% so với khoảng này, log sẽ cảnh báo.
+
 ### Duyệt video bằng điện thoại (bot Telegram)
 
 Mỗi video làm xong, bot gửi về Telegram trên điện thoại của bạn:

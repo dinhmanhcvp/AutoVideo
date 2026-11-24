@@ -111,6 +111,9 @@ def export(job: Job, ready_dir: Path) -> Path:
     dest.mkdir(parents=True, exist_ok=True)
     shutil.copy(job.p("video.mp4"), dest / "video.mp4")
     shutil.copy(job.p("thumbnail.jpg"), dest / "thumbnail.jpg")
+    for extra in ("tiktok.mp4", "tiktok_caption.txt"):
+        if job.p(extra).exists():
+            shutil.copy(job.p(extra), dest / extra)
     (dest / "title.txt").write_text(meta.get("youtube_title", ""), encoding="utf-8")
     (dest / "description.txt").write_text(job.p("youtube_description.txt").read_text(encoding="utf-8"), encoding="utf-8")
     (dest / "tags.txt").write_text(", ".join(meta.get("tags", [])), encoding="utf-8")

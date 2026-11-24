@@ -9,6 +9,8 @@ import shutil
 import unicodedata
 from pathlib import Path
 
+
+
 STAGES = ["fetch", "asr", "translate", "tts", "thumbnail", "render"]
 
 
@@ -86,16 +88,45 @@ class Job:
             self.p("metadata.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
             desc = meta["description"] + "\n\n" + " ".join("#" + t.replace(" ", "") for t in meta["tags"][:5])
             self.p("youtube_description.txt").write_text(desc, encoding="utf-8")
+        meta = json.loads(self.p("metadata.json").read_text(encoding="utf-8"))
+        hook = self.cfg.get("hook", {})
+        if hook.get("enabled") and not self.p("hook.json").exists():
+            from .hook import make_hook
+
+            data = make_hook(self.llm, vi, meta, self.cfg)
+            self.p("hook.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+            self.p("tiktok_caption.txt").write_text(data.get("tiktok_caption", ""), encoding="utf-8")
         if not self.p("script_vi.txt").exists():
-            meta = json.loads(self.p("metadata.json").read_text(encoding="utf-8"))
-            self.p("script_vi.txt").write_text(compose_script(vi, meta), encoding="utf-8")
+            bridge = ""
+            if self.p("hook.json").exists():
+                bridge = json.loads(self.p("hook.json").read_text(encoding="utf-8")).get("bridge", "")
+            self.p("script_vi.txt").write_text(compose_script(vi, meta, bridge), encoding="utf-8")
 
     def tts(self):
         if self.p("voice.wav").exists():
             return
-        from .tts import synthesize
+        from . import ff
+        from .tts import concat_wavs, silence, synth_pieces, synthesize, synthesize_timed
 
-        synthesize(self.p("script_vi.txt").read_text(encoding="utf-8"), self.dir, self.cfg["tts"])
+        tcfg = self.cfg["tts"]
+        script = self.p("script_vi.txt").read_text(encoding="utf-8")
+        if not self.p("hook.json").exists():
+            synthesize(script, self.dir, tcfg)
+            return
+        from .hook import check_length
+
+        hook = json.loads(self.p("hook.json").read_text(encoding="utf-8"))
+        hook_wav, _ = synthesize_timed(hook["hook"], self.dir, tcfg, "hook")
+        if warn := check_length(ff.duration(hook_wav), self.cfg):
+            print(f"  [hook] ⚠ {warn}")
+            hook["warning"] = warn
+            self.p("hook.json").write_text(json.dumps(hook, ensure_ascii=False, indent=1), encoding="utf-8")
+        if hook.get("tiktok_cta"):
+            synth_pieces([hook["tiktok_cta"]], self.dir / "tts" / "cta", tcfg)
+        main = synthesize(script, self.dir, tcfg, out_name="main.wav")
+        # Video YouTube: hook -> ngắt 1 giây -> câu chuyển + lời dẫn + truyện + lời bình
+        concat_wavs([hook_wav, silence(self.dir / "tts" / "pause_1s.wav", 1.0), main],
+                    self.p("voice.wav"), self.dir / "tts" / "voice_list.txt")
 
     def next_episode(self) -> int:
         counter = Path(self.cfg["workdir"]) / "episode_counter.txt"
@@ -137,6 +168,7 @@ class Job:
 
     def render(self):
         if self.p("video.mp4").exists():
+            self.render_tiktok()
             return
         from .render import render
 
@@ -148,6 +180,20 @@ class Job:
         if not images:
             images = [self.p("thumb_bg.png")]
         render(self.p("voice.wav"), images, self.dir, self.cfg["render"])
+        self.render_tiktok()
+
+    def render_tiktok(self):
+        if not (self.cfg.get("tiktok", {}).get("enabled") and self.p("hook.json").exists()):
+            return
+        if self.p("tiktok.mp4").exists():
+            return
+        from .hook import render_tiktok
+
+        meta = json.loads(self.p("metadata.json").read_text(encoding="utf-8"))
+        captions = json.loads(self.p("hook_captions.json").read_text(encoding="utf-8"))
+        cta = self.dir / "tts" / "cta" / "0000.norm.wav"
+        render_tiktok(self.dir, meta, self.p("hook.wav"), captions, cta if cta.exists() else None, self.cfg)
+        print(f"  [tiktok] ✔ {self.p('tiktok.mp4')}")
 
     def run(self, stages: list[str] | None = None):
         for stage in stages or STAGES:

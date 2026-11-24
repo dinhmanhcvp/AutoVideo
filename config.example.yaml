@@ -13,6 +13,28 @@ auto:
   max_attempts: 2                  # truyện lỗi quá số lần này sẽ bị bỏ qua vĩnh viễn
   per_topic: 1                     # số video mới mỗi chủ đề mỗi lần chạy
 
+# ------------------------------------------------------------------ hook + TikTok
+# Video YouTube mở đầu bằng 1 đoạn HOOK 2–5 phút: khoảnh khắc gay cấn nhất của truyện, câu đầu gây sốc,
+# dừng đúng cao trào (không lộ kết) -> câu chuyển -> lời dẫn -> truyện từ đầu.
+# Đoạn hook được dựng thêm thành clip TikTok dọc (tiktok.mp4) kèm phụ đề + lời mời sang YouTube nghe tiếp.
+hook:
+  enabled: true
+  min_minutes: 2
+  max_minutes: 5
+  words_per_minute: 170    # tốc độ đọc ước tính của giọng TTS để quy ra số chữ
+
+tiktok:
+  enabled: true
+  badge: "{channel_name} · Số {episode}"
+  banner: "Nghe trọn bộ trên YouTube: {channel_name}"
+  caption_font: assets/fonts/Baloo2.ttf
+  caption_font_variation: ExtraBold
+  tiktok_highlight: "#FFD54F"
+  fps: 24
+  max_video_kbps: 1000     # giữ clip 5 phút ~40 MB (bot Telegram gửi tối đa 50 MB)
+  lead_in: 0.2             # giọng vào gần như ngay lập tức — 1–2 giây đầu quyết định người xem lướt qua hay không
+  tail: 1.5
+
 # ------------------------------------------------------------------ duyệt qua điện thoại
 # Mỗi video xong, bot Telegram gửi thumbnail + clip xem thử + bản dịch + nút Đăng/Hẹn giờ/Bỏ.
 review:
@@ -193,7 +215,7 @@ render:
   fps: 30
   encoder: auto            # auto | h264_nvenc | libx264
   x264_preset: veryfast    # khi không có GPU NVIDIA: máy yếu dùng superfast / ultrafast
-  lead_in: 2.0             # giây nhạc trước khi giọng đọc bắt đầu
+  lead_in: 0.5             # giây nhạc trước khi giọng đọc bắt đầu (hook cần vào ngay)
   tail: 5.0                # giây nhạc sau khi đọc xong
   footage:
     dir: assets/footage

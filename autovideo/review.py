@@ -58,6 +58,9 @@ def make_preview(video: Path, out: Path, head: float = 120, middle: float = 45) 
     vf = "scale=-2:480,fps=24,format=yuv420p"
     common = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "30", "-c:a", "aac", "-b:a", "64k",
               "-movflags", "+faststart"]
+    if head <= 0:  # chỉ lấy 1 đoạn giữa video
+        ff.run(["-ss", f"{max(0.0, total / 2 - middle / 2):.1f}", "-t", middle, "-i", video, "-vf", vf, *common, out])
+        return out
     if total <= head + middle + 10:
         ff.run(["-i", video, "-t", head + middle, "-vf", vf, *common, out])
         return out
@@ -100,10 +103,21 @@ def notify(dest: Path, cfg: dict, topic: str = "", tg: Telegram | None = None) -
         source = f"\nNguồn: {info.get('title') or ''} {info.get('webpage_url') or ''}"
 
     tg.photo(dest / "thumbnail.jpg", caption=f"🎬 {title}\nChủ đề: {topic} · Dài {fmt_dur(duration)}{source}")
+    tiktok = dest / "tiktok.mp4"
     preview = dest / "preview.mp4"
-    if not preview.exists():
-        make_preview(video, preview, rcfg.get("preview_head", 120), rcfg.get("preview_middle", 45))
-    tg.video(preview, caption="▶️ Xem thử: phần mở đầu + 1 đoạn giữa video")
+    if tiktok.exists():
+        # Hook = phần mở đầu video YouTube, nên clip TikTok vừa để duyệt hook vừa để lưu về máy đăng luôn
+        tg.video(tiktok, caption=f"📱 Clip TikTok (hook {fmt_dur(ff.duration(tiktok))}) — giữ để lưu về máy và đăng")
+        cap = dest / "tiktok_caption.txt"
+        if cap.exists() and cap.read_text(encoding="utf-8").strip():
+            tg.text(cap.read_text(encoding="utf-8"))  # tin riêng để chạm-giữ sao chép caption
+        if not preview.exists():
+            make_preview(video, preview, 0, rcfg.get("preview_middle", 45))
+        tg.video(preview, caption="▶️ Xem thử 1 đoạn giữa video YouTube (giọng, nhạc nền, hình)")
+    else:
+        if not preview.exists():
+            make_preview(video, preview, rcfg.get("preview_head", 120), rcfg.get("preview_middle", 45))
+        tg.video(preview, caption="▶️ Xem thử: phần mở đầu + 1 đoạn giữa video")
     script = dest / "script_vi.txt"
     if script.exists():
         tg.call("sendDocument", files={"document": script}, chat_id=tg.chat_id,

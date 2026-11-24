@@ -158,9 +158,9 @@ def normalize_metadata(meta: dict, cfg: dict) -> dict:
     return meta
 
 
-def compose_script(vi_text: str, meta: dict) -> str:
-    """Kịch bản đọc cuối cùng = intro + truyện + outro."""
-    parts = [meta.get("intro"), vi_text, meta.get("outro")]
+def compose_script(vi_text: str, meta: dict, bridge: str = "") -> str:
+    """Kịch bản chính = câu chuyển từ hook (nếu có) + lời dẫn + truyện + lời bình."""
+    parts = [bridge, meta.get("intro"), vi_text, meta.get("outro")]
     return "\n\n".join(p.strip() for p in parts if p and p.strip())
 
 
