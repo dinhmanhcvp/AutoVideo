@@ -13,6 +13,27 @@ auto:
   max_attempts: 2                  # truyện lỗi quá số lần này sẽ bị bỏ qua vĩnh viễn
   per_topic: 1                     # số video mới mỗi chủ đề mỗi lần chạy
 
+# ------------------------------------------------------------------ duyệt qua điện thoại
+# Mỗi video xong, bot Telegram gửi thumbnail + clip xem thử + bản dịch + nút Đăng/Hẹn giờ/Bỏ.
+review:
+  enabled: false
+  bot_token: null        # hoặc biến môi trường TELEGRAM_BOT_TOKEN (tạo bot qua @BotFather)
+  chat_id: null          # nhắn /id cho bot để lấy, hoặc biến môi trường TELEGRAM_CHAT_ID
+  state_file: output/reviews.json
+  preview_head: 120      # giây đầu video trong clip xem thử
+  preview_middle: 45     # + bấy nhiêu giây ở giữa video
+  daily_run: "02:00"     # bot tự chạy `auto` mỗi ngày giờ này; null để tắt
+
+# Khi bấm Đăng/Hẹn giờ trên điện thoại, PC tự upload lên YouTube.
+youtube:
+  enabled: false
+  client_secrets: secrets/client_secret.json   # OAuth "Desktop app" tạo ở Google Cloud Console
+  token_file: secrets/youtube_token.json
+  category_id: 24                              # 24 = Giải trí
+  declare_synthetic: true                      # khai báo nội dung dùng giọng AI
+  timezone: Asia/Ho_Chi_Minh
+  schedule_slots: ["19:30", "21:30"]           # nút "Hẹn giờ" chọn khung trống gần nhất
+
 # Mỗi chủ đề ghi đè được bất kỳ khóa nào ở trên (genre, tts, render...) => giọng, nhịp đọc,
 # tone footage riêng cho từng chủ đề.
 topics:

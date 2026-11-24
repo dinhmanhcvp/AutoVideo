@@ -50,6 +50,52 @@ schtasks /Create /TN AutoVideo /SC DAILY /ST 02:00 /TR "C:\duong-dan\AutoVideo\s
 
 Log ghi ở `logs\auto.log`.
 
+### Duyệt video bằng điện thoại (bot Telegram)
+
+Mỗi video làm xong, bot gửi về Telegram trên điện thoại của bạn:
+
+1. **Thumbnail**, kèm tiêu đề, chủ đề, độ dài và link nguồn.
+2. **Clip xem thử** (2 phút đầu + 45 giây giữa video, 480p) để nghe giọng, nhạc và xem hình.
+3. **File toàn văn bản dịch** để đọc kiểm tra văn phong.
+4. **Tiêu đề, mô tả, tag** kèm nút: **✅ Đăng ngay · 🕒 Hẹn giờ · ✏️ Sửa tiêu đề · 🗑 Bỏ**.
+
+Bấm **Đăng ngay** hoặc **Hẹn giờ** thì PC tự upload lên YouTube (hẹn giờ chọn khung trống gần nhất trong
+`youtube.schedule_slots`). Bấm **Bỏ** thì video được chuyển vào `ready/_rejected`.
+
+Gõ lệnh cho bot từ điện thoại:
+
+| Lệnh | Tác dụng |
+|---|---|
+| `/run` hoặc `/run tam_su_dem_khuya` | chạy ngay (tất cả hoặc 1 chủ đề) |
+| `/status` | máy đang chạy hay rảnh, số video chờ duyệt, lịch đăng |
+| `/pending` | gửi lại các video chưa duyệt |
+
+Bot còn tự chạy `auto` mỗi ngày lúc `review.daily_run`. Nếu PC bật muộn hơn giờ đó, bot sẽ chạy bù.
+Khi có lỗi, bot nhắn về điện thoại.
+
+**Cài đặt (làm 1 lần trên PC):**
+
+1. Trên Telegram, nhắn **@BotFather** → `/newbot` → lấy token. Đặt biến môi trường `TELEGRAM_BOT_TOKEN`.
+2. Chạy `python -m autovideo bot -c config.yaml`, rồi nhắn `/id` cho bot vừa tạo. Điền số nhận được vào
+   `review.chat_id` (chỉ chat này được bấm nút), và đặt `review.enabled: true`.
+3. Để bot tự bật cùng Windows: `Win+R` → `shell:startup` → tạo shortcut tới `scripts\start_bot.bat`.
+   Bot đã tự chạy hằng ngày nên không cần lên lịch `schtasks` nữa.
+
+**Upload YouTube tự động** (`youtube.enabled: true`):
+
+1. Vào Google Cloud Console → tạo project → bật **YouTube Data API v3**.
+2. Màn hình OAuth consent: chọn External, thêm email kênh của bạn vào Test users. Sau đó bấm **Publish app**
+   (chuyển sang "In production"). Nếu để chế độ Testing, Google bắt đăng nhập lại mỗi 7 ngày.
+3. Credentials → **OAuth client ID → Desktop app** → tải JSON về `secrets/client_secret.json`.
+4. Lần đầu bấm "Đăng" thì PC mở trình duyệt để đăng nhập kênh. Từ đó về sau chạy tự động.
+5. Muốn đặt thumbnail tùy chỉnh, kênh phải đã xác minh số điện thoại.
+
+> ⚠️ **Cần kiểm tra trước khi tin tưởng hoàn toàn:** theo chính sách YouTube API (mình chưa xác minh được
+> bản mới nhất), video upload từ project API **chưa qua audit** có thể bị **khóa ở chế độ Riêng tư**.
+> Hãy thử 1 video. Nếu bị khóa, gửi đơn audit "YouTube API Services" của Google (miễn phí). Trong lúc chờ,
+> để `youtube.enabled: false`: bấm **✅ Duyệt** thì video chuyển vào `ready/_approved/` để bạn tự đăng.
+> Hạn mức API mặc định chỉ đủ vài video/ngày, đủ cho 1 kênh.
+
 ### Máy yếu: dùng `config.lite.yaml`
 
 ```bash

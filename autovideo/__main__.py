@@ -40,7 +40,15 @@ def main(argv=None) -> int:
     auto.add_argument("--topic", action="append", help="chỉ chạy chủ đề này (lặp được)")
     auto.add_argument("--per-topic", type=int, help="số video mới mỗi chủ đề")
     auto.add_argument("--dry-run", action="store_true", help="chỉ tìm và liệt kê, không xử lý")
+    bot = sub.add_parser("bot", help="bot Telegram thường trực: duyệt video, /run, lịch chạy hằng ngày")
+    bot.add_argument("-c", "--config", help="file YAML")
     args = ap.parse_args(argv)
+
+    if args.cmd == "bot":
+        from .review import Bot
+
+        Bot(load_config(args.config), args.config).loop()
+        return 0
 
     if args.cmd == "auto":
         from .auto import run_auto

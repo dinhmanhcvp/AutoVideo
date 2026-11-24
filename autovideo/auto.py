@@ -124,6 +124,11 @@ def run_auto(cfg: dict, topics: list[str] | None = None, per_topic: int | None =
              dry_run: bool = False, search_fn=None) -> list[Path]:
     acfg = cfg["auto"]
     history = History(Path(acfg["history_file"]))
+    tg = None
+    if cfg.get("review", {}).get("enabled") and not dry_run:
+        from .telegram import Telegram
+
+        tg = Telegram(cfg["review"].get("bot_token"), cfg["review"].get("chat_id"))
     ready = Path(acfg["ready_dir"])
     produced: list[Path] = []
 
@@ -159,9 +164,27 @@ def run_auto(cfg: dict, topics: list[str] | None = None, per_topic: int | None =
                 produced.append(dest)
                 made += 1
                 print(f"✔ Sẵn sàng đăng: {dest}")
+                if tg:
+                    try:
+                        from .review import notify
+
+                        notify(dest, cfg, name, tg)
+                    except Exception as e:  # lỗi gửi Telegram không làm hỏng video đã xong
+                        traceback.print_exc()
+                        print(f"  [review] gửi Telegram lỗi: {e}")
             except Exception as e:
                 traceback.print_exc()
                 history.mark(cand, "failed", name, error=str(e)[:300])
+                if tg:
+                    try:
+                        tg.text(f"⚠️ Lỗi khi làm truyện:\n{cand.get('title', '')}\n{str(e)[:300]}")
+                    except Exception:
+                        pass
         if made < need:
             print(f"  [!] Chủ đề {name}: chỉ có {made}/{need} truyện mới — thêm từ khóa hoặc tăng nguồn.")
+    if tg:
+        try:
+            tg.text(f"🏁 Xong lượt chạy: {len(produced)} video mới chờ duyệt.")
+        except Exception:
+            pass
     return produced
