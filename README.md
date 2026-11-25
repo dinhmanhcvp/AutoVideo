@@ -26,6 +26,23 @@ Mục tiêu là **ra view thật**, không phải ra thật nhiều video. Vì v
 
 ---
 
+## 🖥 Giao diện (cách dễ nhất)
+
+**Bấm đúp `Mo_giao_dien.bat`** (hoặc gõ `python -m autovideo ui`), trình duyệt sẽ tự mở giao diện tiếng Việt:
+
+| Trang | Làm gì |
+|---|---|
+| **Tổng quan** | Số video chờ duyệt/đã đăng, chi phí AI tháng này, cảnh báo thiếu khóa API; nút **▶ Chạy 1 lượt** tự động; nhật ký việc gần đây |
+| **Tạo video** | Dán link, dán văn bản hoặc kéo thả file `.txt` → chọn chủ đề → **Tạo video**, xem tiến trình trực tiếp; hoặc thêm vào hàng chờ |
+| **Thành phẩm** | Xem video YouTube / TikTok / Shorts ngay trong trình duyệt, chọn 1 trong 3 phương án thumbnail+tiêu đề, sửa và **sao chép 1 chạm** tiêu đề, mô tả, tag, bình luận ghim, caption TikTok; **Đăng ngay / Hẹn giờ** (nếu bật YouTube) hoặc đánh dấu đã tự đăng; tải file |
+| **Thị trường** | Bảng xếp hạng ngách đang ăn view; bấm **Khảo sát lại** để cập nhật |
+| **Báo cáo** | View/ngày, % giữ chân theo chủ đề; cập nhật số liệu YouTube |
+| **Cài đặt** | Tên kênh, bật/tắt chủ đề, mô hình AI, giọng đọc, ảnh, điểm chất lượng, hook, Telegram, YouTube, **nhập khóa API**; nút **Kiểm tra** và **Xem trước nhận diện** |
+
+- **Trên điện thoại:** bấm đúp `Mo_giao_dien_dien_thoai.bat`, rồi mở đường link có mã truy cập in trong cửa sổ lệnh. Điện thoại phải dùng cùng Wi‑Fi với PC. Giao diện tự chuyển sang bố cục điện thoại, với thanh điều hướng ở đáy màn hình.
+- **An toàn:** giao diện chỉ chạy trên máy bạn (127.0.0.1). Chế độ điện thoại bắt buộc có mã truy cập ngẫu nhiên. Khóa API không bao giờ được gửi ngược về trình duyệt.
+- **Việc dài chạy nền:** tạo video, chạy tự động, khảo sát vẫn tiếp tục khi bạn đóng tab. Nhật ký được lưu trong `output/ui_logs/`.
+
 ## 1. Cài đặt (Windows, khoảng 15 phút)
 
 1. Cài **Python 3.10+** từ python.org (tick *Add python.exe to PATH*).
@@ -88,6 +105,7 @@ python -m autovideo make truyen.txt --topic hai_huoc_gia_dinh --export     # .tx
 
 | Lệnh | Việc |
 |---|---|
+| `python -m autovideo ui [--lan]` | mở giao diện web (`--lan`: cho điện thoại cùng Wi‑Fi) |
 | `python -m autovideo setup` | cài đặt hỏi đáp (chạy lại để đổi lựa chọn) |
 | `python -m autovideo doctor [--online]` | kiểm tra cài đặt; `--online` gọi thử thật từng dịch vụ |
 | `python -m autovideo brand [--real]` | xem trước thumbnail và clip TikTok mọi chủ đề |
@@ -181,7 +199,7 @@ File trung gian của từng video nằm trong `output/<slug>/`. Mỗi bước t
 ## 10. Phát triển
 
 ```bash
-python -m pytest -q    # 46 test offline: LLM/TTS giả lập, media sinh bằng FFmpeg, có test end-to-end đủ 7 bước
+python -m pytest -q    # 55 test offline (gồm test API giao diện chạy server thật): LLM/TTS giả lập, media sinh bằng FFmpeg, có test end-to-end đủ 7 bước
 ```
 
 Mã nguồn chính trong `autovideo/`:
@@ -193,6 +211,6 @@ Mã nguồn chính trong `autovideo/`:
 | Âm thanh | `tts.py` |
 | Hình và video | `thumbnail.py`, `render.py` |
 | Đăng và theo dõi | `review.py` (bot), `youtube.py`, `analytics.py` |
-| Dễ dùng | `setup_wizard.py`, `doctor.py`, `brand.py` |
+| Dễ dùng | `setup_wizard.py`, `doctor.py`, `brand.py`, `webui/` (giao diện web, chỉ dùng thư viện chuẩn) |
 
 Prompt nằm ở `prompts/`, mỗi thể loại một file trong `prompts/genres/`.

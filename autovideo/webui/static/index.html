@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoVideo</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo">🎧</span>
+      <div>
+        <div class="brand-name">AutoVideo</div>
+        <div class="brand-sub" id="channel-name">Truyện audio</div>
+      </div>
+    </div>
+    <nav id="nav">
+      <a href="#overview" data-page="overview"><span class="ic">🏠</span><span>Tổng quan</span></a>
+      <a href="#create" data-page="create"><span class="ic">✨</span><span>Tạo video</span></a>
+      <a href="#ready" data-page="ready"><span class="ic">🎬</span><span>Thành phẩm</span><b class="badge" id="nav-pending" hidden></b></a>
+      <a href="#market" data-page="market"><span class="ic">📊</span><span>Thị trường</span></a>
+      <a href="#report" data-page="report"><span class="ic">📈</span><span>Báo cáo</span></a>
+      <a href="#settings" data-page="settings"><span class="ic">⚙️</span><span>Cài đặt</span></a>
+    </nav>
+    <div class="side-foot" id="running-box" hidden>
+      <div class="spinner"></div><span id="running-label">Đang chạy…</span>
+    </div>
+  </aside>
+  <main id="view" class="view"><div class="loading">Đang tải…</div></main>
+</div>
+<div id="modal" class="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" aria-label="Đóng" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<div id="toasts" class="toasts"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,5 +1,8 @@
 """AutoVideo — dây chuyền làm video truyện audio từ truyện tiếng Trung.
 
+Dễ nhất — mở giao diện trên trình duyệt:
+  python -m autovideo ui                 (thêm --lan để mở từ điện thoại cùng Wi‑Fi)
+
 Bắt đầu (1 lần):
   python -m autovideo setup              hỏi đáp tạo config.yaml + .env
   python -m autovideo doctor [--online]  kiểm tra máy & khóa API, chỉ cách sửa
@@ -48,6 +51,10 @@ def main(argv=None) -> int:
         p.add_argument("-c", "--config", help="file YAML (mặc định: config.yaml nếu có)")
         return p
 
+    p = sub.add_parser("ui", help="mở giao diện web")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--lan", action="store_true", help="cho điện thoại cùng Wi‑Fi truy cập (có mã bảo vệ)")
+    p.add_argument("--no-browser", action="store_true", help="không tự mở trình duyệt")
     add("setup", "hỏi đáp tạo config.yaml + .env")
     p = add("doctor", "kiểm tra cài đặt")
     p.add_argument("--online", action="store_true", help="gọi thử thật LLM, giọng đọc, Telegram")
@@ -78,6 +85,11 @@ def main(argv=None) -> int:
         p.add_argument("--export", action="store_true", help="gom thành phẩm vào ready/ (+ gửi Telegram nếu bật)")
     args = ap.parse_args(argv)
 
+    if args.cmd == "ui":
+        from .webui.server import serve
+
+        serve(args.port, args.lan, not args.no_browser)
+        return 0
     if args.cmd == "setup":
         from .setup_wizard import run_setup
 

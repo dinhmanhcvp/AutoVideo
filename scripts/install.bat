@@ -12,5 +12,5 @@ set PYTHONUTF8=1
 python -m autovideo setup
 python -m autovideo doctor
 echo.
-echo Xong! Mo lai cua so lenh neu vua cai FFmpeg. Chay thu: scripts\run_once.bat
+echo Xong! Mo lai cua so lenh neu vua cai FFmpeg. Tu gio chi can bam dup Mo_giao_dien.bat
 pause
